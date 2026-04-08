@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: quizmi
+      POSTGRES_PASSWORD: quizmi
+      POSTGRES_DB: quizmi
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - quizmi_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  quizmi_postgres_data:
+    driver: local

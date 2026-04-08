@@ -10,7 +10,7 @@ Prepare a local database for `quizmi` development so the next modules can be bui
 The backend will need a persistent database for auth, courses, questions, and quizzes. It is better to prepare it now before entities and migrations appear.
 
 ## Scope
-- [ ] add `docker-compose.yml`
+- [ ] update `tools/docker-compose.yaml`
 - [ ] configure a PostgreSQL container
 - [ ] set database name, user, and password
 - [ ] add a data volume
@@ -19,7 +19,7 @@ The backend will need a persistent database for auth, courses, questions, and qu
 
 ## Steps
 - [ ] choose a PostgreSQL version
-- [ ] prepare `docker-compose.yml`
+- [ ] prepare `tools/docker-compose.yaml`
 - [ ] define variable names and access data
 - [ ] make sure the config matches future `application-dev.yaml`
 - [ ] add a note on how to start and stop the database
