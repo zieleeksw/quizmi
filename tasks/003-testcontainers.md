@@ -10,18 +10,18 @@ Prepare backend integration tests that start a real PostgreSQL container automat
 This gives the project a reliable testing foundation before implementing user registration and other database-based features.
 
 ## Scope
-- [ ] add Testcontainers dependencies
-- [ ] configure PostgreSQL container for tests
-- [ ] connect Spring test configuration to the container
-- [ ] create a base integration test setup
-- [ ] verify that the application context starts with the test container
+- [x] add Testcontainers dependencies
+- [x] configure PostgreSQL container for tests
+- [x] connect Spring test configuration to the container
+- [x] create a base integration test setup
+- [x] verify that the application context starts with the test container
 
 ## Steps
-- [ ] add Testcontainers libraries to Gradle
-- [ ] create a shared integration test base
-- [ ] expose datasource properties from the container
-- [ ] start PostgreSQL automatically in tests
-- [ ] run at least one integration test against the container
+- [x] add Testcontainers libraries to Gradle
+- [x] create a shared integration test base
+- [x] expose datasource properties from the container
+- [x] start PostgreSQL automatically in tests
+- [x] run at least one integration test against the container
 
 ## Decisions
 - integration tests should use a real PostgreSQL instance
