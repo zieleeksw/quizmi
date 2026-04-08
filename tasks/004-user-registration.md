@@ -10,21 +10,23 @@ Create the first real user flow by allowing a new user to register in the applic
 This is the first business feature that writes real domain data to the database and builds the foundation for future login.
 
 ## Scope
-- [ ] create user domain model
-- [ ] add user persistence
-- [ ] implement password hashing
-- [ ] add register request validation
-- [ ] expose `POST /auth/register`
+- [x] create user domain model
+- [x] add user persistence
+- [x] implement password hashing
+- [x] add register request validation
+- [x] expose `POST /auth/register`
+- [x] create database schema with Liquibase
 - [ ] add frontend register page
 - [ ] connect frontend form with backend endpoint
 
 ## Steps
-- [ ] create user entity
-- [ ] create user repository
-- [ ] create register use case
-- [ ] validate email and password
-- [ ] hash password before save
-- [ ] add register controller endpoint
+- [x] create user entity
+- [x] create user repository
+- [x] create register use case
+- [x] validate email and password
+- [x] hash password before save
+- [x] add register controller endpoint
+- [x] add Liquibase migration for `users`
 - [ ] add register page in Angular
 - [ ] handle validation and API errors in UI
 

@@ -1,5 +1,6 @@
 plugins {
 	kotlin("jvm") version "2.2.21"
+	kotlin("plugin.jpa") version "2.2.21"
 	kotlin("plugin.spring") version "2.2.21"
 	id("org.springframework.boot") version "4.0.5"
 	id("io.spring.dependency-management") version "1.1.7"
@@ -19,11 +20,14 @@ repositories {
 }
 
 dependencies {
+	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+	implementation("org.springframework.boot:spring-boot-starter-liquibase")
 	implementation("org.springframework.boot:spring-boot-starter")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
+	implementation("org.springframework.security:spring-security-crypto")
 	runtimeOnly("org.postgresql:postgresql")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.boot:spring-boot-testcontainers")
@@ -32,6 +36,7 @@ dependencies {
 	testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.4"))
 	testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 	testImplementation("org.testcontainers:testcontainers-postgresql")
+	testImplementation("org.springframework.boot:spring-boot-starter-liquibase-test")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

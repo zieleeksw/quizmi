@@ -1,0 +1,88 @@
+<main class="app-shell">
+  <app-toast-stack [toasts]="errorToasts()" (dismissed)="dismissToast($event)" />
+
+  <div class="app-panel auth-page auth-page--register">
+    <app-auth-card
+      eyebrow="Create Account"
+      title="Start your quiz journey."
+      description="Create your account to save progress, track your wins, and come back whenever the next challenge calls."
+    >
+      @if (successMessage()) {
+        <div class="auth-page__status">
+          <div class="app-form-message app-form-message--success" role="status">{{ successMessage() }}</div>
+
+          <div class="auth-page__actions">
+            <app-action-button
+              label="Create Another Account"
+              [routerLink]="null"
+              [tone]="'secondary'"
+              (clicked)="clearSuccess()"
+            />
+          </div>
+        </div>
+      } @else {
+        <form class="app-form auth-page__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <div class="app-field">
+            <label for="register-email">Email address</label>
+            <input
+              id="register-email"
+              class="app-input"
+              type="email"
+              [class.app-input--invalid]="hasError('email')"
+              formControlName="email"
+              placeholder="quiz.master@example.com"
+              autocomplete="email"
+            />
+
+            @if (getErrorMessage('email'); as errorMessage) {
+              <p class="app-error-text">{{ errorMessage }}</p>
+            }
+          </div>
+
+          <div class="app-field">
+            <label for="register-password">Password</label>
+            <input
+              id="register-password"
+              class="app-input"
+              type="password"
+              [class.app-input--invalid]="hasError('password')"
+              formControlName="password"
+              placeholder="At least 12 characters"
+              autocomplete="new-password"
+            />
+
+            @if (getErrorMessage('password'); as errorMessage) {
+              <p class="app-error-text">{{ errorMessage }}</p>
+            }
+          </div>
+
+          <div class="app-field">
+            <label for="register-confirm-password">Confirm password</label>
+            <input
+              id="register-confirm-password"
+              class="app-input"
+              type="password"
+              [class.app-input--invalid]="hasError('confirmPassword')"
+              formControlName="confirmPassword"
+              placeholder="Repeat your password"
+              autocomplete="new-password"
+            />
+
+            @if (getErrorMessage('confirmPassword'); as errorMessage) {
+              <p class="app-error-text">{{ errorMessage }}</p>
+            }
+          </div>
+
+          <div class="auth-page__actions">
+            <app-action-button
+              label="Create Account"
+              [routerLink]="null"
+              [nativeType]="'submit'"
+              [disabled]="isSubmitting()"
+            />
+          </div>
+        </form>
+      }
+    </app-auth-card>
+  </div>
+</main>

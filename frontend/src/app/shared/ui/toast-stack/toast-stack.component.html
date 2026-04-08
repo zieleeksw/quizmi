@@ -1,0 +1,21 @@
+@if (toasts().length) {
+  <div class="toast-stack" aria-live="polite" aria-atomic="false">
+    @for (toast of toasts(); track toast.id) {
+      <article class="toast" [class.toast--success]="toast.tone === 'success'" [class.toast--info]="toast.tone === 'info'" role="status">
+        <span class="toast__accent" aria-hidden="true"></span>
+
+        <button type="button" class="toast__close" (click)="dismissed.emit(toast.id)" aria-label="Dismiss toast">
+          <span aria-hidden="true">&times;</span>
+        </button>
+
+        <div class="toast__content">
+          @if (toast.title) {
+            <p class="toast__eyebrow">{{ toast.title }}</p>
+          }
+
+          <p class="toast__message">{{ toast.message }}</p>
+        </div>
+      </article>
+    }
+  </div>
+}

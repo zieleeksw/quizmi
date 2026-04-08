@@ -1,0 +1,27 @@
+@if (routerLink()) {
+  <a
+    class="action-button"
+    [class.action-button--secondary]="tone() === 'secondary'"
+    [class.action-button--compact]="size() === 'compact'"
+    [routerLink]="routerLink()!"
+  >
+    <span class="action-button__label">{{ label() }}</span>
+    @if (helper()) {
+      <span class="action-button__helper">{{ helper() }}</span>
+    }
+  </a>
+} @else {
+  <button
+    class="action-button"
+    [class.action-button--secondary]="tone() === 'secondary'"
+    [class.action-button--compact]="size() === 'compact'"
+    [disabled]="disabled()"
+    [type]="nativeType()"
+    (click)="clicked.emit()"
+  >
+    <span class="action-button__label">{{ label() }}</span>
+    @if (helper()) {
+      <span class="action-button__helper">{{ helper() }}</span>
+    }
+  </button>
+}

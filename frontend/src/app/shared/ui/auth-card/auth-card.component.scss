@@ -1,0 +1,18 @@
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  min-height: 100%;
+}
+
+.auth-card__description {
+  max-width: 38rem;
+}
+
+.auth-card__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-height: 0;
+}

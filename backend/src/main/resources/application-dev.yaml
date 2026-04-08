@@ -6,6 +6,9 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     open-in-view: false
 
+app:
+  cors:
+    allowed-origin-patterns: http://localhost:4200,http://127.0.0.1:4200,http://192.168.*:4200,http://10.*.*.*:4200
