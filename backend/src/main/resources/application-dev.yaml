@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: ${QUIZMI_DB_URL:jdbc:postgresql://localhost:5432/quizmi}
+    username: ${QUIZMI_DB_USERNAME:quizmi}
+    password: ${QUIZMI_DB_PASSWORD:quizmi}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+
