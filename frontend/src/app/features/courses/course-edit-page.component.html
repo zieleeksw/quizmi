@@ -1,0 +1,77 @@
+<main class="workspace-shell course-edit-shell">
+  <app-toast-stack [toasts]="errorToasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel course-edit-hero">
+    <div class="course-edit-hero__topline">
+      <p class="app-eyebrow">Edit Course</p>
+      @if (course(); as currentCourse) {
+        <a class="course-edit-link" [routerLink]="['/courses', currentCourse.id]">Back to Course</a>
+      } @else {
+        <a class="course-edit-link" [routerLink]="['/courses']">Back to Courses</a>
+      }
+    </div>
+
+    <div class="course-edit-hero__copy">
+      <h1 class="app-title">Refine your course details.</h1>
+      <p class="app-copy">
+        Update the course name and description here, then jump back into the course view when everything feels right.
+      </p>
+    </div>
+  </section>
+
+  @if (isLoading()) {
+    <section class="app-panel course-edit-empty">
+      <p class="app-copy">Loading course details...</p>
+    </section>
+  } @else if (course()) {
+    <section class="app-panel course-edit-form-card">
+      <form class="app-form course-edit-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="app-field">
+          <label for="course-name">Course name</label>
+          <input
+            id="course-name"
+            class="app-input"
+            type="text"
+            formControlName="name"
+            [class.app-input--invalid]="hasError('name')"
+            placeholder="Spring Security Associate"
+          />
+
+          @if (getErrorMessage('name'); as errorMessage) {
+            <p class="app-error-text">{{ errorMessage }}</p>
+          }
+        </div>
+
+        <div class="app-field">
+          <label for="course-description">Course description</label>
+          <textarea
+            id="course-description"
+            class="app-input course-edit-form__textarea"
+            formControlName="description"
+            [class.app-input--invalid]="hasError('description')"
+            placeholder="A focused course for filters, JWTs, and authorization workflows."
+          ></textarea>
+
+          @if (getErrorMessage('description'); as errorMessage) {
+            <p class="app-error-text">{{ errorMessage }}</p>
+          }
+        </div>
+
+        <div class="course-edit-form__actions">
+          <app-action-button
+            label="Save Changes"
+            [routerLink]="null"
+            [nativeType]="'submit'"
+            [disabled]="isSubmitting()"
+          />
+        </div>
+      </form>
+    </section>
+  } @else {
+    <section class="app-panel course-edit-empty">
+      <p class="course-edit-empty__title">Course unavailable.</p>
+      <p class="app-copy">We could not load this course for editing right now.</p>
+    </section>
+  }
+</main>

@@ -2,26 +2,26 @@ import { finalize } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
-import { AuthService } from '../../core/auth/auth.service';
+import { CourseService } from '../../core/courses/course.service';
 import { extractApiMessage, extractFieldErrors } from '../../shared/api/api-error.utils';
 import { ActionButtonComponent } from '../../shared/ui/action-button/action-button.component';
-import { AuthCardComponent } from '../../shared/ui/auth-card/auth-card.component';
 import { ToastStackComponent } from '../../shared/ui/toast-stack/toast-stack.component';
 import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
+import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/workspace-topbar.component';
 
 @Component({
-  selector: 'app-login-page',
-  imports: [ReactiveFormsModule, ActionButtonComponent, AuthCardComponent, ToastStackComponent],
-  templateUrl: './login-page.component.html',
-  styleUrl: './login-page.component.scss'
+  selector: 'app-course-create-page',
+  imports: [RouterLink, ReactiveFormsModule, ActionButtonComponent, ToastStackComponent, WorkspaceTopbarComponent],
+  templateUrl: './course-create-page.component.html',
+  styleUrl: './course-create-page.component.scss'
 })
-export class LoginPageComponent {
+export class CourseCreatePageComponent {
   private readonly formBuilder = inject(FormBuilder);
-  private readonly authService = inject(AuthService);
-  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
+  private readonly courseService = inject(CourseService);
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private toastId = 0;
 
@@ -31,8 +31,8 @@ export class LoginPageComponent {
   readonly errorToasts = signal<ToastItem[]>([]);
 
   readonly form = this.formBuilder.nonNullable.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(128)]]
+    name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120)]],
+    description: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(1000)]]
   });
 
   constructor() {
@@ -55,13 +55,13 @@ export class LoginPageComponent {
       return;
     }
 
-    const { email, password } = this.form.getRawValue();
+    const { name, description } = this.form.getRawValue();
 
-    this.serverFieldErrors.set({});
     this.isSubmitting.set(true);
+    this.serverFieldErrors.set({});
 
-    this.authService
-      .login({ email, password })
+    this.courseService
+      .createCourse({ name, description })
       .pipe(
         finalize(() => this.isSubmitting.set(false)),
         takeUntilDestroyed(this.destroyRef)
@@ -72,7 +72,7 @@ export class LoginPageComponent {
         },
         error: (error) => {
           this.serverFieldErrors.set(extractFieldErrors(error));
-          this.pushErrorToast(extractApiMessage(error) ?? 'Unable to sign you in right now.');
+          this.pushErrorToast(extractApiMessage(error) ?? 'Unable to create your course right now.');
         }
       });
   }
@@ -88,7 +88,7 @@ export class LoginPageComponent {
     this.errorToasts.update((toasts) => toasts.filter((toast) => toast.id !== id));
   }
 
-  hasError(controlName: 'email' | 'password'): boolean {
+  hasError(controlName: 'name' | 'description'): boolean {
     const control = this.form.controls[controlName];
 
     if (this.serverFieldErrors()[controlName]) {
@@ -98,7 +98,7 @@ export class LoginPageComponent {
     return this.hasSubmitted() && control.invalid;
   }
 
-  getErrorMessage(controlName: 'email' | 'password'): string | null {
+  getErrorMessage(controlName: 'name' | 'description'): string | null {
     const serverError = this.serverFieldErrors()[controlName];
 
     if (serverError) {
@@ -112,19 +112,19 @@ export class LoginPageComponent {
     }
 
     if (control.errors['required']) {
-      return controlName === 'email' ? 'Email is required.' : 'Password is required.';
-    }
-
-    if (control.errors['email']) {
-      return 'Enter a valid email address.';
+      return controlName === 'name' ? 'Course name is required.' : 'Course description is required.';
     }
 
     if (control.errors['minlength']) {
-      return 'Password must be at least 12 characters long.';
+      return controlName === 'name'
+        ? 'Course name must be at least 3 characters long.'
+        : 'Course description must be at least 10 characters long.';
     }
 
     if (control.errors['maxlength']) {
-      return 'Password cannot be longer than 128 characters.';
+      return controlName === 'name'
+        ? 'Course name cannot be longer than 120 characters.'
+        : 'Course description cannot be longer than 1000 characters.';
     }
 
     return null;
@@ -132,9 +132,7 @@ export class LoginPageComponent {
 
   private pushErrorToast(message: string): void {
     const id = ++this.toastId;
-    const timeout = setTimeout(() => {
-      this.dismissToast(id);
-    }, 5000);
+    const timeout = setTimeout(() => this.dismissToast(id), 5000);
 
     this.toastTimeouts.set(id, timeout);
     this.errorToasts.update((toasts) => [

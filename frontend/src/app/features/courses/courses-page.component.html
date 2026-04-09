@@ -1,0 +1,99 @@
+<main class="workspace-shell courses-shell">
+  <app-toast-stack [toasts]="errorToasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="courses-hero app-panel">
+    <div class="courses-hero__copy">
+      <p class="app-eyebrow">Course Studio</p>
+      <h1 class="app-title">Build your course library.</h1>
+      <p class="app-copy">
+        Browse the courses you already own, keep the workspace tidy, and jump into creation only when you are ready to
+        add a new learning track.
+      </p>
+    </div>
+  </section>
+
+  <article class="app-panel courses-catalog">
+    <div class="courses-catalog__header">
+      <div class="courses-catalog__copy">
+        <p class="app-eyebrow">Your Courses</p>
+        <h2>Your course library</h2>
+      </div>
+
+      <app-action-button label="Create Course" [routerLink]="['/courses/create']" />
+    </div>
+
+    <div class="courses-catalog__controls">
+      <input
+        id="courses-search"
+        class="app-input courses-search__input"
+        type="search"
+        placeholder="Find by title, description or owner email"
+        [value]="searchTerm()"
+        (input)="updateSearchTerm(($any($event.target)).value)"
+      />
+    </div>
+
+    @if (isLoading()) {
+      <p class="app-copy">Loading your course workspace...</p>
+    } @else if (!courses().length) {
+      <div class="courses-empty">
+        <p class="courses-empty__title">No courses yet.</p>
+        <p class="app-copy">Create your first course and we will use it as the base for upcoming category and question modules.</p>
+      </div>
+    } @else if (!filteredCourses().length) {
+      <div class="courses-empty">
+        <p class="courses-empty__title">No matching courses.</p>
+        <p class="app-copy">Try a different keyword or clear the search field to browse your full library.</p>
+      </div>
+    } @else {
+      <div class="courses-grid">
+        @for (course of paginatedCourses(); track trackByCourseId($index, course)) {
+          <a class="course-card" [routerLink]="['/courses', course.id]">
+            <h3>{{ course.name }}</h3>
+            <p>{{ course.description }}</p>
+            <div class="course-card__footer">
+              <span>Owner: {{ ownerEmail() }}</span>
+              <span>{{ course.createdAt | date: 'medium' }}</span>
+            </div>
+          </a>
+        }
+      </div>
+
+      @if (filteredCourses().length) {
+        <div class="courses-pagination">
+          <button
+            class="courses-pagination__button"
+            type="button"
+            [disabled]="currentPage() === 1"
+            (click)="previousPage()"
+          >
+            Previous
+          </button>
+
+          <div class="courses-pagination__pages">
+            @for (page of pageNumbers(); track page) {
+              <button
+                class="courses-pagination__button courses-pagination__button--page"
+                [class.courses-pagination__button--active]="page === currentPage()"
+                type="button"
+                (click)="setPage(page)"
+              >
+                {{ page }}
+              </button>
+            }
+          </div>
+
+          <button
+            class="courses-pagination__button"
+            type="button"
+            [disabled]="currentPage() === totalPages()"
+            (click)="nextPage()"
+          >
+            Next
+          </button>
+        </div>
+      }
+    }
+  </article>
+</main>

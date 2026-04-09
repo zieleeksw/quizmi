@@ -1,0 +1,45 @@
+<main class="workspace-shell course-details-shell">
+  <app-toast-stack [toasts]="errorToasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel course-details-hero">
+    <div class="course-details-hero__topline">
+      <p class="app-eyebrow">Course Details</p>
+
+      @if (course(); as currentCourse) {
+        <div class="course-details-hero__actions">
+          <a class="course-details-link" [routerLink]="['/courses']">Back to Courses</a>
+          <a class="course-details-link course-details-link--primary" [routerLink]="['/courses', currentCourse.id, 'edit']">
+            Edit Details
+          </a>
+        </div>
+      } @else {
+        <a class="course-details-link" [routerLink]="['/courses']">Back to Courses</a>
+      }
+    </div>
+
+    <div class="course-details-hero__copy">
+      <h1 class="app-title">{{ pageTitle() }}</h1>
+    </div>
+
+    @if (course()) {
+      <div class="course-details-hero__summary">
+        <p class="course-details-hero__description">{{ course()!.description }}</p>
+        <p class="course-details-hero__created">Created {{ course()!.createdAt | date: 'mediumDate' }}</p>
+      </div>
+    }
+  </section>
+
+  @if (isLoading()) {
+    <section class="app-panel course-details-empty">
+      <p class="app-copy">Loading course details...</p>
+    </section>
+  } @else if (course()) {
+    <section class="app-panel course-details-overview"></section>
+  } @else {
+    <section class="app-panel course-details-empty">
+      <p class="course-details-empty__title">Course unavailable.</p>
+      <p class="app-copy">We could not open this course. It may have been removed or you may not have access to it.</p>
+    </section>
+  }
+</main>

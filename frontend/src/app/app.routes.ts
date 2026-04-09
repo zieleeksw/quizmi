@@ -5,6 +5,10 @@ import { guestGuard } from './core/auth/guest.guard';
 import { LoginPageComponent } from './features/auth/login-page.component';
 import { RegisterPageComponent } from './features/auth/register-page.component';
 import { SessionPageComponent } from './features/auth/session-page.component';
+import { CourseCreatePageComponent } from './features/courses/course-create-page.component';
+import { CourseDetailsPageComponent } from './features/courses/course-details-page.component';
+import { CourseEditPageComponent } from './features/courses/course-edit-page.component';
+import { CoursesPageComponent } from './features/courses/courses-page.component';
 
 export const routes: Routes = [
   {
@@ -24,6 +28,31 @@ export const routes: Routes = [
   },
   {
     path: 'app',
+    redirectTo: 'courses',
+    pathMatch: 'full'
+  },
+  {
+    path: 'courses',
+    canActivate: [authGuard],
+    component: CoursesPageComponent
+  },
+  {
+    path: 'courses/create',
+    canActivate: [authGuard],
+    component: CourseCreatePageComponent
+  },
+  {
+    path: 'courses/:courseId/edit',
+    canActivate: [authGuard],
+    component: CourseEditPageComponent
+  },
+  {
+    path: 'courses/:courseId',
+    canActivate: [authGuard],
+    component: CourseDetailsPageComponent
+  },
+  {
+    path: 'session',
     canActivate: [authGuard],
     component: SessionPageComponent
   },

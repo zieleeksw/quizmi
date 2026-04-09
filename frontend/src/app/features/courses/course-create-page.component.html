@@ -1,0 +1,64 @@
+<main class="workspace-shell course-create-shell">
+  <app-toast-stack [toasts]="errorToasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel course-create-hero">
+    <div class="course-create-hero__topline">
+      <p class="app-eyebrow">Create Course</p>
+      <a class="course-create-back" [routerLink]="['/courses']">Back to courses</a>
+    </div>
+
+    <div class="course-create-hero__copy">
+      <h1 class="app-title">Start a new learning track.</h1>
+      <p class="app-copy">
+        Give your next course a strong title and a crisp description. We will bring you back to the library right after
+        creation.
+      </p>
+    </div>
+
+  </section>
+
+  <section class="app-panel course-create-form-card">
+    <form class="app-form course-create-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="app-field">
+        <label for="course-name">Course name</label>
+        <input
+          id="course-name"
+          class="app-input"
+          type="text"
+          formControlName="name"
+          [class.app-input--invalid]="hasError('name')"
+          placeholder="Spring Security Associate"
+        />
+
+        @if (getErrorMessage('name'); as errorMessage) {
+          <p class="app-error-text">{{ errorMessage }}</p>
+        }
+      </div>
+
+      <div class="app-field">
+        <label for="course-description">Course description</label>
+        <textarea
+          id="course-description"
+          class="app-input course-create-form__textarea"
+          formControlName="description"
+          [class.app-input--invalid]="hasError('description')"
+          placeholder="A focused course for filters, JWTs, and authorization workflows."
+        ></textarea>
+
+        @if (getErrorMessage('description'); as errorMessage) {
+          <p class="app-error-text">{{ errorMessage }}</p>
+        }
+      </div>
+
+      <div class="course-create-form__actions">
+        <app-action-button
+          label="Create Course"
+          [routerLink]="null"
+          [nativeType]="'submit'"
+          [disabled]="isSubmitting()"
+        />
+      </div>
+    </form>
+  </section>
+</main>

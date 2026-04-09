@@ -8,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import pl.zieleeksw.quizmi.auth.domain.InvalidRefreshTokenException
+import pl.zieleeksw.quizmi.course.domain.CourseNotFoundException
 import pl.zieleeksw.quizmi.user.domain.EmailAlreadyExistsException
 
 @RestControllerAdvice
@@ -40,6 +41,18 @@ class GlobalExceptionHandler {
             RuntimeExceptionDto(
                 exception = exception::class.simpleName ?: "EmailAlreadyExistsException",
                 message = exception.message ?: "Email already exists."
+            )
+        )
+    }
+
+    @ExceptionHandler(CourseNotFoundException::class)
+    fun handleCourseNotFoundException(
+        exception: CourseNotFoundException
+    ): ResponseEntity<RuntimeExceptionDto> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+            RuntimeExceptionDto(
+                exception = exception::class.simpleName ?: "CourseNotFoundException",
+                message = exception.message ?: "Course was not found."
             )
         )
     }

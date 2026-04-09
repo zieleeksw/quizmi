@@ -1,0 +1,23 @@
+<header class="workspace-topbar">
+  <div class="workspace-topbar__brand">
+    <span class="workspace-topbar__brandmark" aria-hidden="true">
+      <span class="workspace-topbar__brandmark-core">q</span>
+    </span>
+
+    <div class="workspace-topbar__brandcopy">
+      <strong class="workspace-topbar__logo">
+        <span class="workspace-topbar__logo-quiz">quiz</span><span class="workspace-topbar__logo-mi">mi</span>
+      </strong>
+    </div>
+  </div>
+
+  <div class="workspace-topbar__account">
+    @if (user(); as user) {
+      <div class="workspace-topbar__identity">
+        <strong>{{ user.email }}</strong>
+      </div>
+    }
+
+    <button class="workspace-topbar__logout" type="button" (click)="logout()">Log Out</button>
+  </div>
+</header>
