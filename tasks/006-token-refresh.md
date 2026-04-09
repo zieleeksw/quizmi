@@ -10,23 +10,23 @@ Keep the user signed in when the access token expires by refreshing it with the 
 Task 005 introduced login, JWT access tokens, refresh tokens, and the backend refresh endpoint. The missing piece is frontend session continuity, so users are not forced to log in again after every access token expiration.
 
 ## Scope
-- [ ] use backend `POST /auth/refresh-token` from the frontend
-- [ ] detect expired access token responses
-- [ ] refresh tokens automatically before logging the user out
-- [ ] retry the original protected request after successful refresh
-- [ ] update stored session tokens in the frontend
-- [ ] prevent multiple refresh requests from running in parallel
-- [ ] log the user out when refresh token is invalid or expired
-- [ ] add frontend tests for refresh flow
+- [x] use backend `POST /auth/refresh-token` from the frontend
+- [x] detect expired access token responses
+- [x] refresh tokens automatically before logging the user out
+- [x] retry the original protected request after successful refresh
+- [x] update stored session tokens in the frontend
+- [x] prevent multiple refresh requests from running in parallel
+- [x] log the user out when refresh token is invalid or expired
+- [x] add frontend tests for refresh flow
 
 ## Steps
-- [ ] extend `AuthService` with refresh-session method
-- [ ] add refresh token request and response handling
-- [ ] update interceptor to handle `401 Unauthorized`
-- [ ] queue or share refresh work while one refresh is already in progress
-- [ ] repeat the failed request with the new access token
-- [ ] clear session only when refresh fails definitively
-- [ ] verify UX on login/session pages after refresh
+- [x] extend `AuthService` with refresh-session method
+- [x] add refresh token request and response handling
+- [x] update interceptor to handle `401 Unauthorized`
+- [x] queue or share refresh work while one refresh is already in progress
+- [x] repeat the failed request with the new access token
+- [x] clear session only when refresh fails definitively
+- [x] verify UX on login/session pages after refresh
 
 ## Decisions
 - access token refresh should happen transparently for the user

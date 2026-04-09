@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, map } from 'rxjs';
+import { Observable, catchError, finalize, map, shareReplay, throwError } from 'rxjs';
 
 import { AuthenticationDto, AuthSession, LoginRequest, RegisterRequest, UserDto } from './auth.models';
 
@@ -13,6 +13,7 @@ export class AuthService {
   private readonly router = inject(Router);
   private readonly apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:8080`;
   private readonly sessionState = signal<AuthSession | null>(this.restoreSession());
+  private refreshRequest$: Observable<AuthSession> | null = null;
 
   readonly session = this.sessionState.asReadonly();
   readonly user = computed(() => this.sessionState()?.user ?? null);
@@ -28,6 +29,38 @@ export class AuthService {
       .pipe(map((response) => this.storeSession(response)));
   }
 
+  refreshSession(): Observable<AuthSession> {
+    const session = this.sessionState();
+
+    if (!session?.refreshToken) {
+      this.logout();
+      return throwError(() => new Error('Refresh token is missing.'));
+    }
+
+    if (this.refreshRequest$) {
+      return this.refreshRequest$;
+    }
+
+    const refreshRequest = this.http
+      .post<AuthenticationDto>(`${this.apiBaseUrl}/auth/refresh-token`, {
+        token: session.refreshToken
+      })
+      .pipe(
+        map((response) => this.storeSession(response)),
+        catchError((error) => {
+          this.logout();
+          return throwError(() => error);
+        }),
+        finalize(() => {
+          this.refreshRequest$ = null;
+        }),
+        shareReplay({ bufferSize: 1, refCount: false })
+      );
+
+    this.refreshRequest$ = refreshRequest;
+    return refreshRequest;
+  }
+
   logout(redirect = true): void {
     this.clearSession();
 
@@ -38,6 +71,10 @@ export class AuthService {
 
   getAccessToken(): string | null {
     return this.sessionState()?.accessToken ?? null;
+  }
+
+  getRefreshToken(): string | null {
+    return this.sessionState()?.refreshToken ?? null;
   }
 
   handleUnauthorized(): void {
