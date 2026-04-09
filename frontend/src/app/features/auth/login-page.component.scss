@@ -13,16 +13,21 @@ app-auth-card {
   min-height: auto;
 }
 
-.auth-page__actions,
-.auth-page__status {
-  display: grid;
-  gap: 0.9rem;
-  align-items: start;
+.auth-page--login::after {
+  content: "";
+  position: absolute;
+  inset: auto auto 1.4rem 2rem;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(34, 108, 99, 0.18), transparent 68%);
+  pointer-events: none;
 }
 
 .auth-page__actions {
   display: flex;
   flex-wrap: wrap;
+  gap: 0.9rem;
   align-items: center;
 }
 
@@ -37,18 +42,6 @@ app-auth-card {
 .auth-page__form .auth-page__actions {
   margin-top: auto;
   padding-top: 0.75rem;
-}
-
-.app-form-message--success {
-  border-color: rgba(34, 108, 99, 0.24);
-  background: rgba(34, 108, 99, 0.1);
-  color: var(--color-secondary-strong);
-}
-
-.app-muted-copy {
-  margin: 0;
-  color: var(--color-secondary);
-  font-weight: 700;
 }
 
 @media (max-width: 680px) {

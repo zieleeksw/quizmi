@@ -1,0 +1,40 @@
+<main class="app-shell">
+  <div class="app-panel auth-page auth-page--session">
+    <app-auth-card
+      eyebrow="Authenticated Session"
+      title="Your account is ready."
+      description="Quizmi now stores your session locally and attaches the access token to protected backend requests."
+    >
+      @if (user(); as user) {
+        <div class="auth-page__summary">
+          <div class="app-form-message app-form-message--success" role="status">
+            Signed in as <strong>{{ user.email }}</strong> with role <strong>{{ user.role }}</strong>.
+          </div>
+
+          <dl class="auth-page__details">
+            <div>
+              <dt>User ID</dt>
+              <dd>{{ user.id }}</dd>
+            </div>
+            <div>
+              <dt>Access Token</dt>
+              <dd>{{ session()?.accessToken?.slice(0, 24) }}...</dd>
+            </div>
+            <div>
+              <dt>Refresh Token</dt>
+              <dd>{{ session()?.refreshToken?.slice(0, 24) }}...</dd>
+            </div>
+          </dl>
+
+          <p class="app-muted-copy">
+            This is the new auth landing zone. Future protected modules can now rely on the same bearer-token flow.
+          </p>
+
+          <div class="auth-page__actions">
+            <app-action-button label="Sign Out" [routerLink]="null" [tone]="'secondary'" (clicked)="logout()" />
+          </div>
+        </div>
+      }
+    </app-auth-card>
+  </div>
+</main>

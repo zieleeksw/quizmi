@@ -2,9 +2,12 @@ package pl.zieleeksw.quizmi
 
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.core.AuthenticationException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import pl.zieleeksw.quizmi.auth.domain.InvalidRefreshTokenException
 import pl.zieleeksw.quizmi.user.domain.EmailAlreadyExistsException
 
 @RestControllerAdvice
@@ -37,6 +40,42 @@ class GlobalExceptionHandler {
             RuntimeExceptionDto(
                 exception = exception::class.simpleName ?: "EmailAlreadyExistsException",
                 message = exception.message ?: "Email already exists."
+            )
+        )
+    }
+
+    @ExceptionHandler(AuthenticationException::class)
+    fun handleAuthenticationException(
+        exception: AuthenticationException
+    ): ResponseEntity<RuntimeExceptionDto> {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+            RuntimeExceptionDto(
+                exception = exception::class.simpleName ?: "AuthenticationException",
+                message = "Invalid email or password."
+            )
+        )
+    }
+
+    @ExceptionHandler(InvalidRefreshTokenException::class)
+    fun handleInvalidRefreshTokenException(
+        exception: InvalidRefreshTokenException
+    ): ResponseEntity<RuntimeExceptionDto> {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+            RuntimeExceptionDto(
+                exception = exception::class.simpleName ?: "InvalidRefreshTokenException",
+                message = exception.message ?: "Refresh token is invalid or expired."
+            )
+        )
+    }
+
+    @ExceptionHandler(AccessDeniedException::class)
+    fun handleAccessDeniedException(
+        exception: AccessDeniedException
+    ): ResponseEntity<RuntimeExceptionDto> {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+            RuntimeExceptionDto(
+                exception = exception::class.simpleName ?: "AccessDeniedException",
+                message = "Access denied."
             )
         )
     }

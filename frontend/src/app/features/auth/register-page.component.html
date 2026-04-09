@@ -12,6 +12,7 @@
           <div class="app-form-message app-form-message--success" role="status">{{ successMessage() }}</div>
 
           <div class="auth-page__actions">
+            <app-action-button label="Go to Login" [routerLink]="['/login']" />
             <app-action-button
               label="Create Another Account"
               [routerLink]="null"
@@ -80,6 +81,7 @@
               [nativeType]="'submit'"
               [disabled]="isSubmitting()"
             />
+            <app-action-button label="Already Have an Account?" [routerLink]="['/login']" [tone]="'secondary'" />
           </div>
         </form>
       }

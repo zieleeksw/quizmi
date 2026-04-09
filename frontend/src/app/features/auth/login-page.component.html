@@ -1,0 +1,57 @@
+<main class="app-shell">
+  <app-toast-stack [toasts]="errorToasts()" (dismissed)="dismissToast($event)" />
+
+  <div class="app-panel auth-page auth-page--login">
+    <app-auth-card
+      eyebrow="Welcome Back"
+      title="Pick up where you left off."
+      description="Sign in to continue building quizzes, track your progress, and unlock the next protected parts of the app."
+    >
+      <form class="app-form auth-page__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="app-field">
+          <label for="login-email">Email address</label>
+          <input
+            id="login-email"
+            class="app-input"
+            type="email"
+            [class.app-input--invalid]="hasError('email')"
+            formControlName="email"
+            placeholder="quiz.master@example.com"
+            autocomplete="email"
+          />
+
+          @if (getErrorMessage('email'); as errorMessage) {
+            <p class="app-error-text">{{ errorMessage }}</p>
+          }
+        </div>
+
+        <div class="app-field">
+          <label for="login-password">Password</label>
+          <input
+            id="login-password"
+            class="app-input"
+            type="password"
+            [class.app-input--invalid]="hasError('password')"
+            formControlName="password"
+            placeholder="Your secure password"
+            autocomplete="current-password"
+          />
+
+          @if (getErrorMessage('password'); as errorMessage) {
+            <p class="app-error-text">{{ errorMessage }}</p>
+          }
+        </div>
+
+        <div class="auth-page__actions">
+          <app-action-button
+            label="Sign In"
+            [routerLink]="null"
+            [nativeType]="'submit'"
+            [disabled]="isSubmitting()"
+          />
+          <app-action-button label="Create Account" [routerLink]="['/register']" [tone]="'secondary'" />
+        </div>
+      </form>
+    </app-auth-card>
+  </div>
+</main>

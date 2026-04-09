@@ -33,10 +33,22 @@ class UserFacade(
             )
         )
 
+        return savedUser.toDto()
+    }
+
+    @Transactional(readOnly = true)
+    fun findUserByEmailOrThrow(email: String): UserDto {
+        val user = userRepository.findByEmail(email)
+            .orElseThrow { IllegalArgumentException("User with email $email was not found.") }
+
+        return user.toDto()
+    }
+
+    private fun UserEntity.toDto(): UserDto {
         return UserDto(
-            id = savedUser.id!!,
-            email = savedUser.email,
-            role = savedUser.role
+            id = id!!,
+            email = email,
+            role = role
         )
     }
 }
