@@ -1,0 +1,107 @@
+<main class="workspace-shell category-edit-shell">
+  <app-toast-stack [toasts]="toasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel category-edit-hero">
+    <div class="category-edit-hero__topline">
+      <p class="app-eyebrow">Edit Category</p>
+
+      @if (course()) {
+        <div class="category-edit-hero__actions">
+          <a class="category-edit-link" [routerLink]="['/courses', course()!.id]">Back to Course</a>
+          <a class="category-edit-link" [routerLink]="['/courses', course()!.id, 'categories']">Back to Categories</a>
+        </div>
+      } @else {
+        <a class="category-edit-link" [routerLink]="['/courses']">Back to Courses</a>
+      }
+    </div>
+
+    <div class="category-edit-hero__copy">
+      <h1 class="app-title">{{ category()?.name ?? 'Category details' }}</h1>
+      <p class="app-copy">
+        @if (course(); as currentCourse) {
+          Keep the taxonomy inside <strong>{{ currentCourse.name }}</strong> clean and easy to navigate.
+        } @else {
+          Keep the course taxonomy clean and easy to navigate.
+        }
+      </p>
+    </div>
+  </section>
+
+  @if (isLoading()) {
+    <section class="app-panel category-edit-empty">
+      <p class="app-copy">Loading category details...</p>
+    </section>
+  } @else {
+    <section class="app-panel category-edit-grid">
+      <article class="category-edit-card">
+        <div class="category-edit-card__header">
+          <p class="app-eyebrow">Current Category</p>
+          <h2>Edit category</h2>
+          <p class="category-edit-card__lead">Refine the name while keeping the full version trail intact.</p>
+        </div>
+
+        <form class="app-form category-edit-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <div class="app-field">
+            <label for="category-name">Category name</label>
+            <input
+              id="category-name"
+              class="app-input"
+              type="text"
+              formControlName="name"
+              [class.app-input--invalid]="hasError()"
+              placeholder="Authentication"
+            />
+
+            @if (getErrorMessage(); as errorMessage) {
+              <p class="app-error-text">{{ errorMessage }}</p>
+            }
+          </div>
+
+          @if (category()) {
+            <div class="category-edit-meta">
+              <span>Created {{ category()!.createdAt | date: 'mediumDate' }}</span>
+              @if (isCategoryUpdated()) {
+                <span>Updated {{ category()!.updatedAt | date: 'mediumDate' }}</span>
+              }
+            </div>
+          }
+
+          <div class="category-edit-form__actions">
+            <app-action-button
+              label="Save Category"
+              [routerLink]="null"
+              [nativeType]="'submit'"
+              [disabled]="isSubmitting()"
+            />
+          </div>
+        </form>
+      </article>
+
+      <article class="category-edit-card category-edit-card--history">
+        <div class="category-edit-card__header">
+          <p class="app-eyebrow">Version History</p>
+          <h2>Category timeline</h2>
+          <p class="category-edit-card__lead">Previous names stay here so you can track how the category evolved.</p>
+        </div>
+
+        <div class="category-version-list">
+          @for (version of versions(); track trackByVersionId($index, version)) {
+            <article class="category-version-item">
+              <div class="category-version-item__head">
+                <span class="category-version-item__badge">Version {{ version.versionNumber }}</span>
+                <span class="category-version-item__date">{{ version.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
+              </div>
+              <strong>{{ version.name }}</strong>
+            </article>
+          } @empty {
+            <div class="category-edit-empty">
+              <p class="category-edit-empty__title">No versions yet.</p>
+              <p class="app-copy">The first saved version of this category will appear here.</p>
+            </div>
+          }
+        </div>
+      </article>
+    </section>
+  }
+</main>

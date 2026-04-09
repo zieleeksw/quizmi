@@ -1,0 +1,32 @@
+@if (dialog.state().open) {
+  <div class="pending-dialog-backdrop" (click)="cancel()">
+    <section
+      class="pending-dialog app-panel"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="pending-dialog-title"
+      aria-describedby="pending-dialog-message"
+      (click)="$event.stopPropagation()"
+    >
+      <p class="app-eyebrow">Unsaved Changes</p>
+      <h2 id="pending-dialog-title" class="pending-dialog__title">{{ dialog.state().title }}</h2>
+      <p id="pending-dialog-message" class="app-copy pending-dialog__message">{{ dialog.state().message }}</p>
+
+      <div class="pending-dialog__actions">
+        <app-action-button
+          [label]="dialog.state().cancelLabel ?? 'Stay here'"
+          [routerLink]="null"
+          tone="secondary"
+          size="compact"
+          (clicked)="cancel()"
+        />
+        <app-action-button
+          [label]="dialog.state().confirmLabel ?? 'Leave without saving'"
+          [routerLink]="null"
+          size="compact"
+          (clicked)="accept()"
+        />
+      </div>
+    </section>
+  </div>
+}

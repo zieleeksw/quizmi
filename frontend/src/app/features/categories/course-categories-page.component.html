@@ -1,0 +1,82 @@
+<main class="workspace-shell course-categories-shell">
+  <app-toast-stack [toasts]="errorToasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel course-categories-hero">
+    <div class="course-categories-hero__topline">
+      <p class="app-eyebrow">Course Categories</p>
+
+      @if (course(); as currentCourse) {
+        <div class="course-categories-hero__actions">
+          <a class="course-categories-link" [routerLink]="['/courses', currentCourse.id]">Back to Course</a>
+        </div>
+      } @else {
+        <a class="course-categories-link" [routerLink]="['/courses']">Back to Courses</a>
+      }
+    </div>
+
+    <div class="course-categories-hero__copy">
+      <h1 class="app-title">{{ course()?.name ?? 'Course categories' }}</h1>
+      <p class="app-copy">Organize the course structure before you start adding questions and quiz logic.</p>
+    </div>
+  </section>
+
+  <section class="app-panel course-categories-panel">
+    <div class="course-categories-panel__header">
+      <div>
+        <p class="app-eyebrow">Your Categories</p>
+        <h2>Category library</h2>
+      </div>
+
+      @if (course(); as currentCourse) {
+        <a class="course-categories-link course-categories-link--primary" [routerLink]="['/courses', currentCourse.id, 'categories', 'create']">
+          Create Category
+        </a>
+      }
+    </div>
+
+    <div class="course-categories-panel__search">
+      <input
+        class="app-input"
+        type="search"
+        placeholder="Search categories"
+        [value]="searchTerm()"
+        (input)="updateSearchTerm(($any($event.target)).value)"
+      />
+    </div>
+
+    @if (isLoading()) {
+      <p class="app-copy">Loading categories...</p>
+    } @else if (!categories().length) {
+      <div class="course-categories-empty">
+        <p class="course-categories-empty__title">No categories yet.</p>
+        <p class="app-copy">Create your first category to start shaping the structure of this course.</p>
+      </div>
+    } @else if (!filteredCategories().length) {
+      <div class="course-categories-empty">
+        <p class="course-categories-empty__title">No matching categories.</p>
+        <p class="app-copy">Try a different search phrase or clear the filter to browse the full category list.</p>
+      </div>
+    } @else {
+      <div class="course-categories-grid">
+        @for (category of filteredCategories(); track trackByCategoryId($index, category)) {
+          <a class="course-category-card" [routerLink]="['/courses', category.courseId, 'categories', category.id, 'edit']">
+            <h3>{{ category.name }}</h3>
+            <div class="course-category-card__footer">
+              <div class="course-category-card__meta-block">
+                <span class="course-category-card__meta-label">Created</span>
+                <strong class="course-category-card__meta-value">{{ category.createdAt | date: 'mediumDate' }}</strong>
+              </div>
+              @if (isCategoryUpdated(category)) {
+                <div class="course-category-card__meta-block">
+                  <span class="course-category-card__meta-label">Updated</span>
+                  <strong class="course-category-card__meta-value">{{ category.updatedAt | date: 'mediumDate' }}</strong>
+                </div>
+              }
+            </div>
+          </a>
+        }
+      </div>
+    }
+  </section>
+</main>

@@ -1,0 +1,59 @@
+<main class="workspace-shell category-create-shell">
+  <app-toast-stack [toasts]="errorToasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel category-create-hero">
+    <div class="category-create-hero__topline">
+      <p class="app-eyebrow">Create Category</p>
+      @if (course(); as currentCourse) {
+        <a class="category-create-link" [routerLink]="['/courses', currentCourse.id, 'categories']">Back to Categories</a>
+      } @else {
+        <a class="category-create-link" [routerLink]="['/courses']">Back to Courses</a>
+      }
+    </div>
+
+    <div class="category-create-hero__copy">
+      <h1 class="app-title">Add a new category.</h1>
+      <p class="app-copy">
+        @if (course(); as currentCourse) {
+          Shape the structure for <strong>{{ currentCourse.name }}</strong> before you begin adding questions.
+        } @else {
+          Shape the structure of the course before you begin adding questions.
+        }
+      </p>
+    </div>
+  </section>
+
+  <section class="app-panel category-create-form-card">
+    @if (isLoadingCourse()) {
+      <p class="app-copy">Loading course details...</p>
+    } @else {
+      <form class="app-form category-create-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="app-field">
+          <label for="category-name">Category name</label>
+          <input
+            id="category-name"
+            class="app-input"
+            type="text"
+            formControlName="name"
+            [class.app-input--invalid]="hasError()"
+            placeholder="Authentication"
+          />
+
+          @if (getErrorMessage(); as errorMessage) {
+            <p class="app-error-text">{{ errorMessage }}</p>
+          }
+        </div>
+
+        <div class="category-create-form__actions">
+          <app-action-button
+            label="Create Category"
+            [routerLink]="null"
+            [nativeType]="'submit'"
+            [disabled]="isSubmitting()"
+          />
+        </div>
+      </form>
+    }
+  </section>
+</main>
