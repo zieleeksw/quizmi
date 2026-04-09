@@ -16,8 +16,8 @@ This is the first business feature that writes real domain data to the database 
 - [x] add register request validation
 - [x] expose `POST /auth/register`
 - [x] create database schema with Liquibase
-- [ ] add frontend register page
-- [ ] connect frontend form with backend endpoint
+- [x] add frontend register page
+- [x] connect frontend form with backend endpoint
 
 ## Steps
 - [x] create user entity
@@ -27,8 +27,8 @@ This is the first business feature that writes real domain data to the database 
 - [x] hash password before save
 - [x] add register controller endpoint
 - [x] add Liquibase migration for `users`
-- [ ] add register page in Angular
-- [ ] handle validation and API errors in UI
+- [x] add register page in Angular
+- [x] handle validation and API errors in UI
 
 ## Decisions
 - registration will be implemented before login
