@@ -1,0 +1,207 @@
+<main class="workspace-shell question-editor-shell">
+  <app-toast-stack [toasts]="toasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel question-editor-hero">
+    <div class="question-editor-hero__topline">
+      <p class="app-eyebrow">{{ isEditing ? 'Question Versioning' : 'Question Composer' }}</p>
+
+      @if (course()) {
+        <a class="question-editor-link" [routerLink]="['/courses', course()!.id, 'questions']">Back to Question Bank</a>
+      } @else {
+        <a class="question-editor-link" [routerLink]="['/courses']">Back to Courses</a>
+      }
+    </div>
+
+    <div class="question-editor-hero__copy">
+      <h1 class="app-title">{{ isEditing ? 'Edit Question' : 'Add New Question' }}</h1>
+      <p class="app-copy">
+        {{ isEditing
+          ? 'Editing creates a new question version, so the previous states stay visible on the side.'
+          : 'Create a fresh course question in its own focused flow, then head back to the bank when it is ready.' }}
+      </p>
+    </div>
+  </section>
+
+  @if (isLoading()) {
+    <section class="app-panel question-editor-empty">
+      <p class="app-copy">Loading question workspace...</p>
+    </section>
+  } @else {
+    <section class="app-panel question-editor-grid" [class.question-editor-grid--single]="!isEditing">
+      <article class="question-editor-card">
+        <div class="question-editor-card__header">
+          <p class="app-eyebrow">{{ isEditing ? 'Question Versioning' : 'Question Composer' }}</p>
+          <h2>{{ isEditing ? 'Save A New Question Version' : 'Create New Question' }}</h2>
+          <p class="question-editor-card__lead">
+            Categories come from the managed taxonomy, and saving on edit creates a fresh backend version instead of mutating history.
+          </p>
+        </div>
+
+        <form class="app-form question-editor-form" [formGroup]="form" (ngSubmit)="saveQuestion()" novalidate>
+          <div class="app-field">
+            <label>Categories</label>
+
+            @if (categories().length) {
+              <div class="question-editor-chip-row">
+                @for (category of categories(); track category.id) {
+                  <button
+                    class="question-editor-chip"
+                    type="button"
+                    [class.question-editor-chip--active]="selectedCategoryIds().includes(category.id)"
+                    (click)="toggleCategory(category.id)"
+                  >
+                    {{ category.name }}
+                  </button>
+                }
+              </div>
+            } @else {
+              <div class="question-editor-empty question-editor-empty--compact">
+                <p class="question-editor-empty__title">Create a category first.</p>
+                <p class="app-copy">Questions use your managed categories, so add one before building the bank.</p>
+              </div>
+            }
+          </div>
+
+          <div class="app-field">
+            <label for="question-prompt">Question prompt</label>
+            <textarea
+              id="question-prompt"
+              class="app-input question-editor-textarea"
+              formControlName="prompt"
+              [class.app-input--invalid]="hasPromptError()"
+              placeholder="What should the learner answer?"
+            ></textarea>
+
+            @if (getPromptError(); as promptError) {
+              <p class="app-error-text">{{ promptError }}</p>
+            } @else if (duplicatePromptHint()) {
+              <p class="question-editor-info">{{ duplicatePromptHint() }}</p>
+            }
+          </div>
+
+          <div class="app-field">
+            <div class="question-editor-answers__head">
+              <label>Answers</label>
+            </div>
+
+            <div class="question-editor-answers" formArrayName="answers">
+              @for (answerControl of answersArray().controls; track answerControl) {
+                <div class="question-editor-answer-row" [formGroupName]="$index">
+                  <div class="question-editor-answer-row__head">
+                    <label
+                      class="question-editor-answer-row__label"
+                      [for]="'question-answer-' + answerLabel($index).toLowerCase()"
+                    >
+                      Option {{ answerLabel($index) }}
+                    </label>
+
+                    <div class="question-editor-answer-row__actions">
+                      <label class="question-editor-toggle question-editor-toggle--pill" [for]="'question-answer-correct-' + answerLabel($index).toLowerCase()">
+                        <input
+                          class="question-editor-toggle__input"
+                          type="checkbox"
+                          [id]="'question-answer-correct-' + answerLabel($index).toLowerCase()"
+                          formControlName="correct"
+                        />
+                        <span class="question-editor-toggle__indicator" aria-hidden="true"></span>
+                        <span>Correct</span>
+                      </label>
+
+                      <button
+                        class="question-editor-inline-button question-editor-inline-button--danger"
+                        type="button"
+                        [disabled]="answersArray().length <= 2"
+                        [class.question-editor-inline-button--disabled]="answersArray().length <= 2"
+                        (click)="removeAnswer($index)"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+
+                  <input
+                    class="app-input"
+                    [id]="'question-answer-' + answerLabel($index).toLowerCase()"
+                    formControlName="content"
+                    [placeholder]="'Answer ' + answerLabel($index)"
+                  />
+                </div>
+              }
+            </div>
+
+            @if (answersArray().length < 6) {
+              <div class="question-editor-answer-add">
+                <button class="question-editor-add-button" type="button" (click)="addAnswer()">
+                  <span class="question-editor-add-button__icon">+</span>
+                  <span>Answer</span>
+                </button>
+              </div>
+            }
+          </div>
+
+          <div class="question-editor-actions">
+            <app-action-button
+              [label]="isEditing ? 'Save Version' : 'Create'"
+              [routerLink]="null"
+              [nativeType]="'submit'"
+              [disabled]="isSubmitting() || !categories().length"
+            />
+            @if (course()) {
+              <app-action-button
+                label="Back"
+                [routerLink]="['/courses', course()!.id, 'questions']"
+                tone="secondary"
+              />
+            }
+          </div>
+        </form>
+      </article>
+
+      @if (isEditing) {
+        <article class="question-editor-card question-editor-card--history">
+          <div class="question-editor-card__header">
+            <p class="app-eyebrow">Version History</p>
+            <h2>Inspect Previous Question States</h2>
+            <p class="question-editor-card__lead">Every edit creates a new backend version, so this timeline keeps earlier prompts, answers, and category assignments.</p>
+          </div>
+
+          @if (versions().length) {
+            <div class="question-version-list">
+              @for (version of versions(); track trackByVersionId($index, version)) {
+                <article class="question-version-item">
+                  <div class="question-version-item__head">
+                    <span class="question-version-item__badge">Version {{ version.versionNumber }}</span>
+                    <span class="question-version-item__date">{{ version.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
+                  </div>
+
+                  <h3>{{ version.prompt }}</h3>
+
+                  <div class="question-version-item__badges">
+                    @for (category of version.categories; track category.id) {
+                      <span class="question-version-item__pill">{{ category.name }}</span>
+                    }
+                  </div>
+
+                  <div class="question-version-item__answers">
+                    @for (answer of version.answers; track answer.id) {
+                      <div class="question-version-item__answer" [class.question-version-item__answer--correct]="answer.correct">
+                        <span>{{ answer.displayOrder + 1 }}</span>
+                        <strong>{{ answer.content }}</strong>
+                      </div>
+                    }
+                  </div>
+                </article>
+              }
+            </div>
+          } @else {
+            <div class="question-editor-empty question-editor-empty--compact">
+              <p class="question-editor-empty__title">No previous versions yet.</p>
+              <p class="app-copy">The question is loaded, but there is no older history to display yet.</p>
+            </div>
+          }
+        </article>
+      }
+    </section>
+  }
+</main>

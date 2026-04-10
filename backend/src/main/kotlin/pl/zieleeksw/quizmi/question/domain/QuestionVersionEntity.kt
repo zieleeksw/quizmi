@@ -1,4 +1,4 @@
-package pl.zieleeksw.quizmi.category.domain
+package pl.zieleeksw.quizmi.question.domain
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -9,24 +9,24 @@ import jakarta.persistence.Table
 import java.time.Instant
 
 @Entity
-@Table(name = "category_versions")
-open class CategoryVersionEntity protected constructor() {
+@Table(name = "question_versions")
+open class QuestionVersionEntity protected constructor() {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     open var id: Long? = null
         protected set
 
-    @Column(name = "category_id", nullable = false)
-    open var categoryId: Long? = null
+    @Column(name = "question_id", nullable = false)
+    open var questionId: Long? = null
         protected set
 
     @Column(name = "version_number", nullable = false)
     open var versionNumber: Int? = null
         protected set
 
-    @Column(nullable = false, length = 120)
-    open lateinit var name: String
+    @Column(nullable = false, length = 1000)
+    open lateinit var prompt: String
         protected set
 
     @Column(name = "created_at", nullable = false)
@@ -34,14 +34,14 @@ open class CategoryVersionEntity protected constructor() {
         protected set
 
     constructor(
-        categoryId: Long,
+        questionId: Long,
         versionNumber: Int,
-        name: String,
+        prompt: String,
         createdAt: Instant
     ) : this() {
-        this.categoryId = categoryId
+        this.questionId = questionId
         this.versionNumber = versionNumber
-        this.name = name
+        this.prompt = prompt
         this.createdAt = createdAt
     }
 }

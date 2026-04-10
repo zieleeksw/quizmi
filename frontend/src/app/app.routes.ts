@@ -13,6 +13,8 @@ import { CourseCreatePageComponent } from './features/courses/course-create-page
 import { CourseDetailsPageComponent } from './features/courses/course-details-page.component';
 import { CourseEditPageComponent } from './features/courses/course-edit-page.component';
 import { CoursesPageComponent } from './features/courses/courses-page.component';
+import { CourseQuestionsPageComponent } from './features/questions/course-questions-page.component';
+import { QuestionEditorPageComponent } from './features/questions/question-editor-page.component';
 
 export const routes: Routes = [
   {
@@ -55,6 +57,23 @@ export const routes: Routes = [
     canActivate: [authGuard],
     canDeactivate: [pendingChangesGuard],
     component: CategoryEditPageComponent
+  },
+  {
+    path: 'courses/:courseId/questions/new',
+    canActivate: [authGuard],
+    canDeactivate: [pendingChangesGuard],
+    component: QuestionEditorPageComponent
+  },
+  {
+    path: 'courses/:courseId/questions/:questionId/edit',
+    canActivate: [authGuard],
+    canDeactivate: [pendingChangesGuard],
+    component: QuestionEditorPageComponent
+  },
+  {
+    path: 'courses/:courseId/questions',
+    canActivate: [authGuard],
+    component: CourseQuestionsPageComponent
   },
   {
     path: 'courses/:courseId/categories',

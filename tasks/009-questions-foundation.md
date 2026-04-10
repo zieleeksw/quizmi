@@ -21,6 +21,9 @@ Categories are already in place, so the next real product layer is the question 
 - [x] add frontend question edit flow with version history
 - [x] add unsaved changes warning for question editor flow
 - [x] connect question management with course details navigation
+- [x] disable question creation in UI when the course has no categories
+- [x] reject duplicate answers within a single question
+- [x] show a soft warning when the same prompt already exists in the course
 
 ## Steps
 - [x] create question entity and repositories
@@ -42,6 +45,9 @@ Categories are already in place, so the next real product layer is the question 
 - [x] render searchable question preview with category filter and pagination
 - [x] show question version timeline in Angular
 - [x] add reusable pending changes confirmation for question editor navigation
+- [x] disable `Add Question` when no categories exist and show an explanatory hover hint
+- [x] block duplicate answers in both frontend and backend validation
+- [x] show a non-blocking prompt duplication hint in the question editor
 
 ## Decisions
 - questions belong to exactly one course
@@ -50,6 +56,9 @@ Categories are already in place, so the next real product layer is the question 
 - updating a question appends a new version instead of mutating history in place
 - question create and question edit share one focused editor flow
 - question editor should protect users from leaving with unsaved changes
+- question creation should stay blocked until the course has at least one category
+- answers inside one question should be unique after trim and case normalization
+- identical prompts may exist across different questions, but the editor should warn softly within the course scope
 - delete/archive question stays outside this task
 
 ## Frontend Shape
@@ -59,6 +68,9 @@ Categories are already in place, so the next real product layer is the question 
 - show question preview cards with category pills and answer overview
 - keep the version timeline visible beside the editor when editing
 - show a custom in-app confirmation when the user leaves question editing with unsaved changes
+- keep `Add Question` visibly disabled until categories exist and explain why on hover
+- prevent duplicate answers before submit and enforce the same rule on the backend
+- warn when the same normalized prompt already exists in the course, without blocking save
 
 ## Data
 2026-04-10

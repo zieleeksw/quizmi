@@ -14,23 +14,23 @@ open class CourseEntity protected constructor() {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    var id: Long? = null
+    open var id: Long? = null
         protected set
 
     @Column(nullable = false, length = 120)
-    lateinit var name: String
+    open lateinit var name: String
         set
 
     @Column(nullable = false, length = 1000)
-    lateinit var description: String
+    open lateinit var description: String
         set
 
     @Column(name = "created_at", nullable = false)
-    lateinit var createdAt: Instant
+    open lateinit var createdAt: Instant
         protected set
 
     @Column(name = "owner_user_id", nullable = false)
-    var ownerUserId: Long? = null
+    open var ownerUserId: Long? = null
         protected set
 
     constructor(

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 import pl.zieleeksw.quizmi.auth.domain.InvalidRefreshTokenException
 import pl.zieleeksw.quizmi.category.domain.CategoryNotFoundException
 import pl.zieleeksw.quizmi.course.domain.CourseNotFoundException
+import pl.zieleeksw.quizmi.question.domain.QuestionNotFoundException
 import pl.zieleeksw.quizmi.user.domain.EmailAlreadyExistsException
 
 @RestControllerAdvice
@@ -66,6 +67,18 @@ class GlobalExceptionHandler {
             RuntimeExceptionDto(
                 exception = exception::class.simpleName ?: "CategoryNotFoundException",
                 message = exception.message ?: "Category was not found."
+            )
+        )
+    }
+
+    @ExceptionHandler(QuestionNotFoundException::class)
+    fun handleQuestionNotFoundException(
+        exception: QuestionNotFoundException
+    ): ResponseEntity<RuntimeExceptionDto> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+            RuntimeExceptionDto(
+                exception = exception::class.simpleName ?: "QuestionNotFoundException",
+                message = exception.message ?: "Question was not found."
             )
         )
     }

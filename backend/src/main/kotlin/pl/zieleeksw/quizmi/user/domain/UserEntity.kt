@@ -21,20 +21,20 @@ open class UserEntity protected constructor() {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    var id: Long? = null
+    open var id: Long? = null
         protected set
 
     @Column(nullable = false, length = 255, unique = true)
-    lateinit var email: String
+    open lateinit var email: String
         protected set
 
     @Column(name = "password_hash", nullable = false, length = 255)
-    lateinit var passwordHash: String
+    open lateinit var passwordHash: String
         protected set
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
-    lateinit var role: UserRole
+    open lateinit var role: UserRole
         protected set
 
     constructor(
