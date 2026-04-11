@@ -8,9 +8,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import pl.zieleeksw.quizmi.auth.domain.InvalidRefreshTokenException
+import pl.zieleeksw.quizmi.attempt.domain.QuizAttemptNotFoundException
+import pl.zieleeksw.quizmi.attempt.domain.QuizSessionNotFoundException
 import pl.zieleeksw.quizmi.category.domain.CategoryNotFoundException
 import pl.zieleeksw.quizmi.course.domain.CourseNotFoundException
 import pl.zieleeksw.quizmi.question.domain.QuestionNotFoundException
+import pl.zieleeksw.quizmi.quiz.domain.QuizNotFoundException
 import pl.zieleeksw.quizmi.user.domain.EmailAlreadyExistsException
 
 @RestControllerAdvice
@@ -79,6 +82,42 @@ class GlobalExceptionHandler {
             RuntimeExceptionDto(
                 exception = exception::class.simpleName ?: "QuestionNotFoundException",
                 message = exception.message ?: "Question was not found."
+            )
+        )
+    }
+
+    @ExceptionHandler(QuizNotFoundException::class)
+    fun handleQuizNotFoundException(
+        exception: QuizNotFoundException
+    ): ResponseEntity<RuntimeExceptionDto> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+            RuntimeExceptionDto(
+                exception = exception::class.simpleName ?: "QuizNotFoundException",
+                message = exception.message ?: "Quiz was not found."
+            )
+        )
+    }
+
+    @ExceptionHandler(QuizSessionNotFoundException::class)
+    fun handleQuizSessionNotFoundException(
+        exception: QuizSessionNotFoundException
+    ): ResponseEntity<RuntimeExceptionDto> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+            RuntimeExceptionDto(
+                exception = exception::class.simpleName ?: "QuizSessionNotFoundException",
+                message = exception.message ?: "Quiz session was not found."
+            )
+        )
+    }
+
+    @ExceptionHandler(QuizAttemptNotFoundException::class)
+    fun handleQuizAttemptNotFoundException(
+        exception: QuizAttemptNotFoundException
+    ): ResponseEntity<RuntimeExceptionDto> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+            RuntimeExceptionDto(
+                exception = exception::class.simpleName ?: "QuizAttemptNotFoundException",
+                message = exception.message ?: "Quiz attempt was not found."
             )
         )
     }

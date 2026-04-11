@@ -1,0 +1,144 @@
+<main class="workspace-shell quiz-statistics-shell">
+  <app-toast-stack [toasts]="toasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel quiz-statistics-hero">
+    <div class="quiz-statistics-hero__topline">
+      <p class="app-eyebrow">Advanced Statistics</p>
+
+      <div class="quiz-statistics-hero__actions">
+        <a class="quiz-statistics-link" [routerLink]="['/courses', courseId, 'quizzes', quizId]">Back to Quiz</a>
+      </div>
+    </div>
+
+    <div class="quiz-statistics-hero__copy">
+      <h1 class="app-title">{{ quiz()?.title ?? 'Quiz statistics' }}</h1>
+      <p class="app-copy">This is the analytics foundation screen. It already shows outcome trends, and it is the right
+        home for deeper per-question and per-category breakdowns next.</p>
+    </div>
+  </section>
+
+  @if (isLoading()) {
+  <section class="app-panel quiz-statistics-panel">
+    <p class="app-copy">Loading statistics...</p>
+  </section>
+  } @else {
+  <section class="app-panel quiz-statistics-panel">
+    <div class="quiz-statistics-grid">
+      <article class="quiz-statistics-card">
+        <span class="quiz-statistics-card__label">Attempts</span>
+        <strong>{{ quizAttempts().length }}</strong>
+      </article>
+
+      <article class="quiz-statistics-card">
+        <span class="quiz-statistics-card__label">Average accuracy</span>
+        <strong>{{ averageAccuracy() }}%</strong>
+      </article>
+
+      <article class="quiz-statistics-card">
+        <span class="quiz-statistics-card__label">Best result</span>
+        <strong>{{ bestAccuracy() }}%</strong>
+      </article>
+    </div>
+  </section>
+
+  <section class="app-panel quiz-statistics-panel">
+    <div class="quiz-statistics-panel__header">
+      <div>
+        <p class="app-eyebrow">Category performance</p>
+        <h2>Strengths and weaknesses</h2>
+      </div>
+    </div>
+
+    @if (!categoryStats().length) {
+    <div class="quiz-statistics-empty">
+      <p class="quiz-statistics-empty__title">Not enough data.</p>
+      <p class="app-copy">Play the quiz first to populate category metrics.</p>
+    </div>
+    } @else {
+    <div class="quiz-statistics-category-list">
+      @for (cat of categoryStats(); track cat.categoryId) {
+      <div class="quiz-statistics-category-item">
+        <div class="quiz-statistics-category-item__header">
+          <strong>{{ cat.categoryName }} <span class="app-copy">({{ cat.totalAttempts }} answered)</span></strong>
+          <span [class]="'quiz-statistics-category-item__status--' + cat.status">{{ cat.accuracy }}%</span>
+        </div>
+        <div class="quiz-statistics-category-progress" [class]="'quiz-statistics-category-progress--' + cat.status">
+          <div class="quiz-statistics-category-progress__bar" [style.width.%]="cat.accuracy"></div>
+        </div>
+      </div>
+      }
+    </div>
+    }
+  </section>
+
+  <section class="app-panel quiz-statistics-panel">
+    <div class="quiz-statistics-panel__header">
+      <div>
+        <p class="app-eyebrow">Drill-down</p>
+        <h2>Most problematic questions</h2>
+      </div>
+    </div>
+
+    @if (!questionStats().length) {
+    <div class="quiz-statistics-empty">
+      <p class="quiz-statistics-empty__title">No questions answered.</p>
+    </div>
+    } @else {
+    <div class="quiz-statistics-question-list">
+      @for (q of questionStats().slice(0, 5); track q.questionId) {
+      <article class="quiz-statistics-question-card">
+        <div class="quiz-statistics-question-card__score"
+          [class.quiz-statistics-question-card__score--alert]="q.accuracy < 50">
+          {{ q.accuracy }}%
+        </div>
+        <div class="quiz-statistics-question-card__info">
+          <strong>{{ q.prompt }}</strong>
+          <p class="app-copy">{{ q.categoryNames }} &bull; {{ q.attemptsCount }} attempts</p>
+        </div>
+      </article>
+      }
+    </div>
+    }
+  </section>
+
+  <section class="app-panel quiz-statistics-panel">
+    <div class="quiz-statistics-panel__header">
+      <div>
+        <p class="app-eyebrow">Full analysis</p>
+        <h2>All questions</h2>
+      </div>
+    </div>
+
+    @if (questionStats().length) {
+    <div class="quiz-statistics-table-wrapper">
+      <table class="quiz-statistics-table">
+        <thead>
+          <tr>
+            <th>Question</th>
+            <th>Category</th>
+            <th>Attempts</th>
+            <th>Accuracy</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (q of questionStats(); track q.questionId) {
+          <tr>
+            <td class="quiz-statistics-table__prompt">{{ q.prompt }}</td>
+            <td>{{ q.categoryNames }}</td>
+            <td>{{ q.attemptsCount }}</td>
+            <td>
+              <span class="quiz-statistics-badge"
+                [class]="'quiz-statistics-badge--' + (q.accuracy < 50 ? 'red' : (q.accuracy < 80 ? 'amber' : 'green'))">
+                {{ q.accuracy }}%
+              </span>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </section>
+  }
+</main>

@@ -1,0 +1,96 @@
+<main class="workspace-shell course-quizzes-shell">
+  <app-toast-stack [toasts]="toasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel course-quizzes-hero">
+    <div class="course-quizzes-hero__topline">
+      <p class="app-eyebrow">Quiz Library</p>
+
+      @if (course()) {
+      <a class="course-quizzes-link" [routerLink]="['/courses', course()!.id]">Back to Course</a>
+      } @else {
+      <a class="course-quizzes-link" [routerLink]="['/courses']">Back to Courses</a>
+      }
+    </div>
+
+    <div class="course-quizzes-hero__copy">
+      <h1 class="app-title">{{ course()?.name ?? 'Quiz library' }}</h1>
+      <p class="app-copy">Build fixed, random, or category-driven quizzes and keep attempts in one course workspace.</p>
+    </div>
+  </section>
+
+  <section class="app-panel course-quizzes-panel">
+    <div class="course-quizzes-panel__header">
+      <div>
+        <p class="app-eyebrow">Your Quizzes</p>
+        <h2>Course quiz library</h2>
+      </div>
+
+      @if (canCreateQuiz()) {
+      <button class="course-quizzes-link course-quizzes-link--primary" type="button"
+        (click)="createQuiz()">Create</button>
+      } @else {
+      <div class="course-quizzes-disabled-cta" [attr.title]="createQuizHint">
+        <button class="course-quizzes-link course-quizzes-link--primary course-quizzes-link--disabled" type="button"
+          disabled>
+          Create
+        </button>
+        <span class="course-quizzes-disabled-cta__tooltip">{{ createQuizHint }}</span>
+      </div>
+      }
+    </div>
+
+    <div class="course-quizzes-panel__search">
+      <input class="app-input" type="search" placeholder="Search quizzes by name or category" [value]="searchTerm()"
+        (input)="updateSearchTerm(($any($event.target)).value)" />
+    </div>
+
+    @if (isLoading()) {
+    <p class="app-copy">Loading quizzes...</p>
+    } @else if (!visibleQuizzes().length) {
+    <div class="course-quizzes-empty">
+      <p class="course-quizzes-empty__title">No quizzes here yet.</p>
+      <p class="app-copy">Create the first quiz after you have at least one question in this course.</p>
+    </div>
+    } @else {
+    <div class="course-quizzes-list">
+      @for (quiz of visibleQuizzes(); track trackByQuizId($index, quiz)) {
+      <article class="course-quiz-card" tabindex="0" (click)="openQuizEditor(quiz.id)"
+        (keydown.enter)="openQuizEditor(quiz.id)">
+        <div class="course-quiz-card__top">
+          <div>
+            <p class="course-quiz-card__eyebrow">{{ quizModeLabel(quiz.mode) }}</p>
+            <h3>{{ quiz.title }}</h3>
+          </div>
+
+          @if (hasSession(quiz.id)) {
+          <span class="course-quiz-card__session">In progress</span>
+          }
+        </div>
+
+        @if (quiz.categories.length) {
+        <div class="course-quiz-card__badges">
+          @for (category of quiz.categories; track category.id) {
+          <span class="course-quiz-card__badge">{{ category.name }}</span>
+          }
+        </div>
+        }
+
+        <div class="course-quiz-card__meta">
+          <span>{{ quiz.resolvedQuestionCount }} questions</span>
+          <span>Version {{ quiz.currentVersionNumber }}</span>
+        </div>
+      </article>
+      }
+    </div>
+
+    <div class="course-quizzes-pagination">
+      <button class="course-quizzes-pagination__button" type="button" [disabled]="page() === 0"
+        (click)="goToPreviousPage()">Previous</button>
+      <span class="course-quiz-card__meta-inline">{{ pageLabel() }}</span>
+      <button class="course-quizzes-pagination__button" type="button"
+        [disabled]="page() >= totalPages() - 1 || totalPages() === 0" (click)="goToNextPage()">Next</button>
+    </div>
+    }
+  </section>
+</main>

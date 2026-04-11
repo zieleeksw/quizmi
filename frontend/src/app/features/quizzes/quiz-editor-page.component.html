@@ -1,0 +1,209 @@
+<main class="workspace-shell quiz-editor-shell">
+  <app-toast-stack [toasts]="toasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel quiz-editor-hero">
+    <div class="quiz-editor-hero__topline">
+      <p class="app-eyebrow">{{ isEditing ? 'Quiz Editor' : 'Quiz Composer' }}</p>
+
+      <div class="quiz-editor-hero__actions">
+        @if (isEditing) {
+        <a class="quiz-editor-link" [routerLink]="['/courses', courseId, 'quizzes', quizId]">Back</a>
+        } @else if (course()) {
+        <a class="quiz-editor-link" [routerLink]="['/courses', course()!.id, 'quizzes']">Back</a>
+        } @else {
+        <a class="quiz-editor-link" [routerLink]="['/courses']">Back</a>
+        }
+      </div>
+    </div>
+
+    <div class="quiz-editor-hero__copy">
+      <h1 class="app-title">{{ isEditing ? 'Edit Quiz' : 'Create Quiz' }}</h1>
+      <p class="app-copy">This screen is only for quiz composition. Play flow, attempts, and overview stay outside the
+        editor.</p>
+    </div>
+  </section>
+
+  @if (isLoading()) {
+  <section class="app-panel quiz-editor-empty">
+    <p class="app-copy">Loading quiz editor...</p>
+  </section>
+  } @else {
+  <section class="app-panel quiz-editor-grid" [class.quiz-editor-grid--single]="!isEditing">
+    <article class="quiz-editor-card">
+      <div class="quiz-editor-card__header">
+        <p class="app-eyebrow">{{ isEditing ? 'Current Draft' : 'New Quiz' }}</p>
+        <h2>{{ isEditing ? 'Save a new quiz version' : 'Create a new quiz' }}</h2>
+      </div>
+
+      <form class="app-form quiz-editor-form" [formGroup]="form" (ngSubmit)="saveQuiz()" novalidate>
+        <div class="app-field">
+          <label for="quiz-title">Quiz title</label>
+          <input id="quiz-title" class="app-input" formControlName="title" placeholder="JWT Foundations Drill" />
+        </div>
+
+        <div class="app-field">
+          <label>Quiz mode</label>
+          <div class="quiz-editor-chip-row">
+            @for (mode of quizModes; track mode) {
+            <button class="quiz-editor-chip" type="button" [class.quiz-editor-chip--active]="currentMode() === mode"
+              (click)="form.controls.mode.setValue($any(mode))">
+              {{ mode }}
+            </button>
+            }
+          </div>
+        </div>
+
+        <div class="quiz-editor-order-grid">
+          <div class="app-field">
+            <label>Question order</label>
+            <div class="quiz-editor-chip-row">
+              @for (order of orderModes; track order) {
+              <button class="quiz-editor-chip" type="button"
+                [class.quiz-editor-chip--active]="form.controls.questionOrder.getRawValue() === order"
+                (click)="form.controls.questionOrder.setValue($any(order))">
+                {{ order }}
+              </button>
+              }
+            </div>
+          </div>
+
+          <div class="app-field">
+            <label>Answer order</label>
+            <div class="quiz-editor-chip-row">
+              @for (order of orderModes; track order) {
+              <button class="quiz-editor-chip" type="button"
+                [class.quiz-editor-chip--active]="form.controls.answerOrder.getRawValue() === order"
+                (click)="form.controls.answerOrder.setValue($any(order))">
+                {{ order }}
+              </button>
+              }
+            </div>
+          </div>
+        </div>
+
+        @if (currentMode() === 'manual') {
+        <div class="quiz-editor-manual-grid">
+          <div class="app-field">
+            <label>Question bank</label>
+            <input class="app-input" type="search" placeholder="Search questions" [value]="searchTerm()"
+              (input)="updateSearchTerm(($any($event.target)).value)" />
+
+            <div class="quiz-editor-question-list" (dragover)="allowQuestionDrop($event)">
+              @for (question of bankQuestions(); track question.id) {
+              <article class="quiz-editor-question-card" draggable="true" tabindex="0" role="button"
+                (click)="toggleQuestionSelection(question.id)" (keydown)="onQuestionBankKeydown(question.id, $event)"
+                (dragstart)="startDraggingQuestion(question.id, 'bank', $event)" (dragend)="endDraggingQuestion()">
+                <strong>{{ question.prompt }}</strong>
+                <span>{{ questionCategoriesLabel(question) }}</span>
+              </article>
+              }
+            </div>
+          </div>
+
+          <div class="app-field">
+            <label>Selected questions</label>
+
+            <div class="quiz-editor-selected-well"
+              [class.quiz-editor-dropzone--active]="!selectedQuestionIds().length && dropTargetIndex() === 0"
+              (dragover)="!selectedQuestionIds().length ? markDropIndex(0, $event) : allowQuestionDrop($event)"
+              (dragleave)="clearDropMarker()" (drop)="!selectedQuestionIds().length ? dropQuestionAt(0, $event) : null">
+              @if (!selectedQuestionIds().length) {
+              <div class="quiz-editor-selected-well__empty">
+                <p class="quiz-editor-empty__title">No questions selected yet.</p>
+                <p class="app-copy">Pick questions from the bank or drag them here to build the fixed quiz set.</p>
+              </div>
+              } @else {
+              <div class="quiz-editor-selected-list">
+                @for (questionId of selectedQuestionIds(); track questionId; let index = $index) {
+                <div class="quiz-editor-selected-item" draggable="true"
+                  [class.quiz-editor-selected-item--drop-before]="dropTargetIndex() === index"
+                  [class.quiz-editor-selected-item--drop-after]="dropTargetIndex() === index + 1 && index === selectedQuestionIds().length - 1"
+                  (dragstart)="startDraggingQuestion(questionId, 'selected', $event)" (dragend)="endDraggingQuestion()"
+                  (dragover)="onSelectedItemDragOver(index, $event)" (dragleave)="clearDropMarker()"
+                  (drop)="dropQuestionAtMarker($event)">
+                  <div>
+                    <span class="quiz-editor-selected-item__index">{{ index + 1 }}</span>
+                    <strong>{{ selectedQuestionPrompt(questionId) }}</strong>
+                  </div>
+
+                  <div class="quiz-editor-selected-item__actions">
+                    <button type="button" (click)="removeSelectedQuestion(questionId)">Remove</button>
+                  </div>
+                </div>
+                }
+              </div>
+              }
+            </div>
+          </div>
+        </div>
+        }
+
+        @if (currentMode() === 'category') {
+        <div class="app-field">
+          <label>Selected categories</label>
+          <div class="quiz-editor-chip-row">
+            @for (category of categories(); track category.id) {
+            <button class="quiz-editor-chip" type="button"
+              [class.quiz-editor-chip--active]="selectedCategoryIds().includes(category.id)"
+              (click)="toggleCategory(category.id)">
+              {{ category.name }}
+            </button>
+            }
+          </div>
+        </div>
+        }
+
+        @if (shouldShowQuestionCount()) {
+        <div class="app-field">
+          <label for="quiz-random-count">{{ questionCountLabel() }}</label>
+          <input id="quiz-random-count" class="app-input" type="number" min="1" formControlName="randomCount" />
+        </div>
+        }
+
+        <div class="quiz-editor-actions">
+          <app-action-button [label]="isEditing ? 'Save Version' : 'Create'" [routerLink]="null" [nativeType]="'submit'"
+            [disabled]="isSubmitting() || (isEditing && !hasPendingChanges())" />
+          @if (isEditing) {
+          <app-action-button label="Back" [routerLink]="['/courses', courseId, 'quizzes', quizId]" tone="secondary" />
+          } @else if (course()) {
+          <app-action-button label="Back" [routerLink]="['/courses', course()!.id, 'quizzes']" tone="secondary" />
+          }
+        </div>
+      </form>
+    </article>
+
+    @if (isEditing) {
+    <aside class="quiz-editor-sidebar">
+      <article class="quiz-editor-card quiz-editor-card--history">
+        <div class="quiz-editor-card__header">
+          <p class="app-eyebrow">Version History</p>
+          <h2>Quiz timeline</h2>
+        </div>
+
+        @if (versions().length) {
+        <div class="quiz-version-list">
+          @for (version of versions(); track version.id) {
+          <article class="quiz-version-item">
+            <div class="quiz-version-item__head">
+              <span class="quiz-version-item__badge">Version {{ version.versionNumber }}</span>
+              <span class="quiz-version-item__date">{{ version.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
+            </div>
+
+            <h3>{{ version.title }}</h3>
+            <p class="app-copy">{{ version.mode }} mode • {{ version.resolvedQuestionCount }} questions</p>
+          </article>
+          }
+        </div>
+        } @else {
+        <div class="quiz-editor-empty quiz-editor-empty--compact">
+          <p class="quiz-editor-empty__title">No older versions yet.</p>
+          <p class="app-copy">Save future changes and the timeline will appear here.</p>
+        </div>
+        }
+      </article>
+    </aside>
+    }
+  </section>
+  }
+</main>

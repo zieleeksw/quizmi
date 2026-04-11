@@ -15,6 +15,12 @@ import { CourseEditPageComponent } from './features/courses/course-edit-page.com
 import { CoursesPageComponent } from './features/courses/courses-page.component';
 import { CourseQuestionsPageComponent } from './features/questions/course-questions-page.component';
 import { QuestionEditorPageComponent } from './features/questions/question-editor-page.component';
+import { CourseQuizzesPageComponent } from './features/quizzes/course-quizzes-page.component';
+import { QuizAttemptReviewPageComponent } from './features/quizzes/quiz-attempt-review-page.component';
+import { QuizEditorPageComponent } from './features/quizzes/quiz-editor-page.component';
+import { QuizOverviewPageComponent } from './features/quizzes/quiz-overview-page.component';
+import { QuizPlayPageComponent } from './features/quizzes/quiz-play-page.component';
+import { QuizStatisticsPageComponent } from './features/quizzes/quiz-statistics-page.component';
 
 export const routes: Routes = [
   {
@@ -74,6 +80,43 @@ export const routes: Routes = [
     path: 'courses/:courseId/questions',
     canActivate: [authGuard],
     component: CourseQuestionsPageComponent
+  },
+  {
+    path: 'courses/:courseId/quizzes/new',
+    canActivate: [authGuard],
+    canDeactivate: [pendingChangesGuard],
+    component: QuizEditorPageComponent
+  },
+  {
+    path: 'courses/:courseId/quizzes/:quizId/edit',
+    canActivate: [authGuard],
+    canDeactivate: [pendingChangesGuard],
+    component: QuizEditorPageComponent
+  },
+  {
+    path: 'courses/:courseId/quizzes/:quizId/statistics',
+    canActivate: [authGuard],
+    component: QuizStatisticsPageComponent
+  },
+  {
+    path: 'courses/:courseId/quizzes/:quizId/play',
+    canActivate: [authGuard],
+    component: QuizPlayPageComponent
+  },
+  {
+    path: 'courses/:courseId/quizzes/:quizId',
+    canActivate: [authGuard],
+    component: QuizOverviewPageComponent
+  },
+  {
+    path: 'courses/:courseId/quizzes',
+    canActivate: [authGuard],
+    component: CourseQuizzesPageComponent
+  },
+  {
+    path: 'courses/:courseId/attempts/:attemptId',
+    canActivate: [authGuard],
+    component: QuizAttemptReviewPageComponent
   },
   {
     path: 'courses/:courseId/categories',

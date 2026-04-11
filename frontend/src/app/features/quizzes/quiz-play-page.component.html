@@ -1,0 +1,82 @@
+<main class="workspace-shell quiz-play-shell">
+  <app-toast-stack [toasts]="toasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel quiz-play-hero">
+    <div class="quiz-play-hero__topline">
+      <p class="app-eyebrow">Quiz Play</p>
+      <a class="quiz-play-link" [routerLink]="['/courses', courseId, 'quizzes', quizId]">Back</a>
+    </div>
+
+    <div class="quiz-play-hero__copy">
+      <h1 class="app-title">{{ quiz()?.title ?? 'Quiz play' }}</h1>
+      <p class="app-copy">Select every correct answer for each question. A point counts only when the full correct set
+        is matched exactly.</p>
+    </div>
+  </section>
+
+  @if (isLoading()) {
+  <section class="app-panel">
+    <p class="app-copy">Loading quiz session...</p>
+  </section>
+  } @else if (completedAttempt()) {
+  <section class="app-panel quiz-play-result">
+    <p class="app-eyebrow">Result</p>
+    <h2>{{ completedAttempt()!.correctAnswers }} / {{ completedAttempt()!.totalQuestions }}</h2>
+    <p class="app-copy">The attempt is finished and saved. Open the review to inspect every selected answer.</p>
+
+    <div class="quiz-play-result__actions">
+      <app-action-button label="View Review" [routerLink]="null" (clicked)="openReview()" />
+      <app-action-button label="Back" [routerLink]="['/courses', courseId, 'quizzes', quizId]" tone="secondary" />
+    </div>
+  </section>
+  } @else {
+  <section class="app-panel quiz-play-grid">
+    <aside class="quiz-play-nav">
+      @for (question of orderedQuestions(); track question.id; let index = $index) {
+      <button class="quiz-play-nav__item" type="button" [class.quiz-play-nav__item--active]="index === currentIndex()"
+        [class.quiz-play-nav__item--answered]="(answersMap()[question.id]?.length ?? 0) > 0"
+        (click)="openQuestion(index)">
+        <strong>{{ index + 1 }}</strong>
+        <span>{{ question.prompt }}</span>
+      </button>
+      }
+    </aside>
+
+    <article class="quiz-play-question">
+      @if (currentQuestion(); as question) {
+      <div class="quiz-play-question__header">
+        <p class="app-eyebrow">Question {{ currentIndex() + 1 }} / {{ orderedQuestions().length }}</p>
+        <h2>{{ question.prompt }}</h2>
+      </div>
+
+      <div class="quiz-play-options">
+        @for (answer of currentOptions(); track answer.id; let index = $index) {
+        <label class="quiz-play-option" [class.quiz-play-option--selected]="isSelected(question.id, answer.id)">
+          <input type="checkbox" [checked]="isSelected(question.id, answer.id)" (change)="toggleAnswer(answer.id)" />
+          <span class="quiz-play-option__letter">{{ answerLabel(index) }}</span>
+          <span>{{ answer.content }}</span>
+        </label>
+        }
+      </div>
+
+      <div class="quiz-play-actions">
+        <app-action-button label="Previous" [routerLink]="null" tone="secondary" [disabled]="currentIndex() === 0"
+          (clicked)="goToPreviousQuestion()" />
+        <app-action-button [label]="currentIndex() === orderedQuestions().length - 1 ? 'Finish' : 'Next'"
+          [routerLink]="null"
+          [disabled]="currentIndex() === orderedQuestions().length - 1 ? !allQuestionsAnswered() || isSubmitting() : !currentQuestionAnswered() || isSaving()"
+          (clicked)="currentIndex() === orderedQuestions().length - 1 ? finishAttempt() : goToNextQuestion()" />
+      </div>
+      } @else {
+      <div class="quiz-play-empty">
+        <p class="quiz-play-empty__title">This quiz session could not load the current question.</p>
+        <p class="app-copy">Go back to the quiz overview and start the session again. If the problem repeats, the
+          session may point to an outdated quiz shape.</p>
+        <a class="quiz-play-link" [routerLink]="['/courses', courseId, 'quizzes', quizId]">Back to Quiz</a>
+      </div>
+      }
+    </article>
+  </section>
+  }
+</main>

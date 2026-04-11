@@ -1,0 +1,173 @@
+<main class="workspace-shell quiz-overview-shell">
+  <app-toast-stack [toasts]="toasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel quiz-overview-hero">
+    <div class="quiz-overview-hero__topline">
+      <p class="app-eyebrow">Quiz Overview</p>
+
+      <a class="quiz-overview-link" [routerLink]="['/courses', courseId, 'quizzes']">Back to Quizzes</a>
+    </div>
+
+    <div class="quiz-overview-hero__body">
+      <div class="quiz-overview-hero__copy">
+        <h1 class="app-title">{{ quiz()?.title ?? 'Quiz overview' }}</h1>
+        <p class="app-copy">{{ quizSummary() }}</p>
+      </div>
+    </div>
+  </section>
+
+  @if (isLoading()) {
+  <section class="app-panel quiz-overview-panel">
+    <p class="app-copy">Loading quiz overview...</p>
+  </section>
+  } @else {
+  <section class="app-panel quiz-overview-panel">
+    <div class="quiz-overview-panel__header">
+      <div>
+        <p class="app-eyebrow">Quiz Snapshot</p>
+        <h2>Current setup</h2>
+      </div>
+    </div>
+
+    <div class="quiz-overview-summary-grid">
+      <div class="quiz-overview-summary__stats">
+        <article class="quiz-overview-summary-card">
+          <span class="quiz-overview-summary-card__label">Mode</span>
+          <strong>{{ quizModeLabel() }}</strong>
+        </article>
+        <article class="quiz-overview-summary-card">
+          <span class="quiz-overview-summary-card__label">Questions</span>
+          <strong>{{ quiz()?.resolvedQuestionCount ?? 0 }}</strong>
+        </article>
+        <article class="quiz-overview-summary-card">
+          <span class="quiz-overview-summary-card__label">Version</span>
+          <strong>{{ quiz()?.currentVersionNumber ?? 0 }}</strong>
+        </article>
+        <article class="quiz-overview-summary-card">
+          <span class="quiz-overview-summary-card__label">Question order</span>
+          <strong>{{ quiz()?.questionOrder ?? 'fixed' }}</strong>
+        </article>
+        <article class="quiz-overview-summary-card">
+          <span class="quiz-overview-summary-card__label">Answer order</span>
+          <strong>{{ quiz()?.answerOrder ?? 'fixed' }}</strong>
+        </article>
+        <article class="quiz-overview-summary-card">
+          <span class="quiz-overview-summary-card__label">Updated</span>
+          <strong>{{ quiz()?.updatedAt | date: 'd MMM yyyy' }}</strong>
+        </article>
+      </div>
+
+      <div class="quiz-overview-summary__actions">
+        <button class="quiz-overview-link quiz-overview-link--primary" type="button" [disabled]="isStartingSession()"
+          (click)="startQuiz()">
+          {{ hasSession() ? 'Continue' : 'Play' }}
+        </button>
+        <a class="quiz-overview-link" [routerLink]="['/courses', courseId, 'quizzes', quizId, 'statistics']">Advanced
+          statistics</a>
+        <a class="quiz-overview-link" [routerLink]="['/courses', courseId, 'quizzes', quizId, 'edit']">Edit</a>
+      </div>
+    </div>
+
+    @if (quiz()?.categories?.length) {
+    <div class="quiz-overview-category-row">
+      @for (category of quiz()!.categories; track category.id) {
+      <span class="quiz-overview-category-pill">{{ category.name }}</span>
+      }
+    </div>
+    }
+  </section>
+
+  <section class="app-panel quiz-overview-panel">
+    <div class="quiz-overview-panel__header">
+      <div>
+        <p class="app-eyebrow">Attempts</p>
+        <h2>Recent results</h2>
+      </div>
+    </div>
+
+    @if (!quizAttempts().length) {
+    <div class="quiz-overview-empty">
+      <p class="quiz-overview-empty__title">No attempts yet.</p>
+      <p class="app-copy">Play this quiz to start building a result history here.</p>
+    </div>
+    } @else {
+    <div class="quiz-overview-attempt-list">
+      @for (attempt of quizAttempts(); track attempt.id) {
+      <article class="quiz-overview-attempt-card"
+        [class.quiz-overview-attempt-card--expanded]="expandedAttemptId() === attempt.id">
+        <button class="quiz-overview-attempt-card__summary" type="button" (click)="toggleAttempt(attempt.id)">
+          <div class="quiz-overview-attempt-card__preview">
+            <span class="quiz-overview-attempt-card__score"
+              [style.background]="'conic-gradient(rgba(128, 208, 176, 0.85) ' + attemptPercentage(attempt) + '%, rgba(255, 171, 171, 0.45) 0)'">
+              {{ attemptPercentage(attempt) }}%
+            </span>
+            <div class="quiz-overview-attempt-card__text">
+              <span class="quiz-overview-attempt-card__result">{{ attempt.correctAnswers }} / {{ attempt.totalQuestions
+                }} correct</span>
+              <span class="quiz-overview-attempt-card__date">{{ attempt.finishedAt | date: 'd MMM yyyy, HH:mm' }}</span>
+            </div>
+          </div>
+
+          <span class="quiz-overview-attempt-card__toggle"
+            [class.quiz-overview-attempt-card__toggle--open]="expandedAttemptId() === attempt.id">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </span>
+        </button>
+
+        @if (expandedAttemptId() === attempt.id) {
+        <div class="quiz-overview-attempt-card__details">
+          @if (loadingDetailsForAttemptId() === attempt.id) {
+          <div class="quiz-overview-analytics-loading">
+            <p class="app-copy">Loading analytics...</p>
+          </div>
+          } @else {
+          <div class="quiz-overview-analytics">
+            <div class="quiz-overview-analytics-header">
+              <div class="quiz-overview-donut"
+                [style.background]="'conic-gradient(var(--color-success) ' + attemptPercentage(attempt) + '%, var(--color-error) 0)'">
+                <div class="quiz-overview-donut__inner">
+                  <strong>{{ attemptPercentage(attempt) }}%</strong>
+                </div>
+              </div>
+
+              <div class="quiz-overview-analytics-info">
+                <p class="app-eyebrow">Attempt Details</p>
+                <h2>{{ attempt.correctAnswers }} / {{ attempt.totalQuestions }} correct</h2>
+                <p class="app-copy">Finished: {{ attempt.finishedAt | date: 'd MMM yyyy, HH:mm' }}</p>
+                <button class="quiz-overview-link quiz-overview-link--primary" type="button"
+                  (click)="openAttempt(attempt.id)">Review questions</button>
+              </div>
+            </div>
+
+            <div class="quiz-overview-domains">
+              <h3 class="quiz-overview-domains__title">Domains</h3>
+              <div class="quiz-overview-domain-list">
+                @for (domain of domainStatsFor(attempt.id); track domain.categoryId) {
+                <div class="quiz-overview-domain-item">
+                  <div class="quiz-overview-domain-item__header">
+                    <strong>{{ domain.categoryName }} <span class="app-copy">({{ domain.totalQuestions }}
+                        questions)</span></strong>
+                    <span>{{ domain.percentage }}%</span>
+                  </div>
+                  <div class="quiz-overview-domain-progress">
+                    <div class="quiz-overview-domain-progress__bar" [style.width.%]="domain.percentage"></div>
+                  </div>
+                </div>
+                }
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+        }
+      </article>
+      }
+    </div>
+    }
+  </section>
+  }
+</main>

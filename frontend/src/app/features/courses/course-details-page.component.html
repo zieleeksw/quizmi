@@ -63,6 +63,20 @@
           </a>
         </div>
       </section>
+
+      <section class="app-panel course-details-overview">
+        <div class="course-details-overview__copy">
+          <p class="app-eyebrow">Quiz Layer</p>
+          <h2>Quizzes</h2>
+          <p class="app-copy">Bundle questions into fixed, random, or category-based quiz runs and review exact-match results after each attempt.</p>
+        </div>
+
+        <div class="course-details-overview__actions">
+          <a class="course-details-link course-details-link--primary" [routerLink]="['/courses', course()!.id, 'quizzes']">
+            Manage Quizzes
+          </a>
+        </div>
+      </section>
     </div>
   } @else {
     <section class="app-panel course-details-empty">

@@ -1,0 +1,53 @@
+<main class="workspace-shell quiz-review-shell">
+  <app-toast-stack [toasts]="toasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <section class="app-panel quiz-review-hero">
+    <div class="quiz-review-hero__topline">
+      <p class="app-eyebrow">Attempt Review</p>
+      <a class="quiz-review-link" [routerLink]="['/courses', courseId, 'quizzes']">Back</a>
+    </div>
+
+    <div class="quiz-review-hero__copy">
+      <h1 class="app-title">{{ attempt()?.quizTitle ?? 'Quiz review' }}</h1>
+      @if (attempt()) {
+        <p class="app-copy">{{ attempt()!.correctAnswers }} / {{ attempt()!.totalQuestions }} correct · {{ attempt()!.finishedAt | date: 'd MMM yyyy, HH:mm' }}</p>
+      }
+    </div>
+  </section>
+
+  @if (isLoading()) {
+    <section class="app-panel">
+      <p class="app-copy">Loading attempt review...</p>
+    </section>
+  } @else if (attempt()) {
+    <section class="app-panel quiz-review-list">
+      @for (question of attempt()!.questions; track question.questionId; let index = $index) {
+        <article class="quiz-review-card">
+          <div class="quiz-review-card__head">
+            <div>
+              <p class="app-eyebrow">Question {{ index + 1 }}</p>
+              <h2>{{ question.prompt }}</h2>
+            </div>
+            <span class="quiz-review-card__result" [class.quiz-review-card__result--correct]="question.answeredCorrectly">
+              {{ question.answeredCorrectly ? 'Correct' : 'Incorrect' }}
+            </span>
+          </div>
+
+          <div class="quiz-review-card__answers">
+            @for (answer of question.answers; track answer.id; let answerIndex = $index) {
+              <div
+                class="quiz-review-card__answer"
+                [class.quiz-review-card__answer--selected]="isSelected(question.questionId, answer.id)"
+                [class.quiz-review-card__answer--correct]="isCorrect(question.questionId, answer.id)"
+              >
+                <span class="quiz-review-card__letter">{{ answerLabel(answerIndex) }}</span>
+                <span>{{ answer.content }}</span>
+              </div>
+            }
+          </div>
+        </article>
+      }
+    </section>
+  }
+</main>

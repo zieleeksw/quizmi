@@ -1,0 +1,108 @@
+.quiz-review-shell {
+  display: grid;
+  gap: 1.6rem;
+}
+
+.quiz-review-hero,
+.quiz-review-list {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+}
+
+.quiz-review-hero__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.quiz-review-hero__topline,
+.quiz-review-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.quiz-review-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.3rem;
+  padding: 0.9rem 1.35rem;
+  border: 1px solid rgba(24, 43, 73, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--color-copy-strong);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.quiz-review-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.3rem;
+  border: 1px solid rgba(24, 43, 73, 0.12);
+  border-radius: 1.5rem;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.quiz-review-card__answers {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.quiz-review-card__answer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(24, 43, 73, 0.1);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.quiz-review-card__answer--selected {
+  border-color: rgba(217, 107, 67, 0.26);
+}
+
+.quiz-review-card__answer--correct {
+  background: rgba(34, 108, 99, 0.1);
+  border-color: rgba(34, 108, 99, 0.24);
+}
+
+.quiz-review-card__letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  border-radius: 999px;
+  background: rgba(24, 43, 73, 0.08);
+  font-weight: 700;
+}
+
+.quiz-review-card__result {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.2rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(217, 107, 67, 0.12);
+  color: var(--color-primary-strong);
+  font-weight: 700;
+}
+
+.quiz-review-card__result--correct {
+  background: rgba(34, 108, 99, 0.12);
+  color: var(--color-secondary-strong);
+}
+
+@media (max-width: 900px) {
+
+  .quiz-review-hero__topline,
+  .quiz-review-card__head {
+    flex-direction: column;
+  }
+}
