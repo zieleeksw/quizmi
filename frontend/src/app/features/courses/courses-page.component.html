@@ -50,11 +50,13 @@
       <div class="courses-grid">
         @for (course of paginatedCourses(); track trackByCourseId($index, course)) {
           <a class="course-card" [routerLink]="['/courses', course.id]">
-            <h3>{{ course.name }}</h3>
-            <p>{{ course.description }}</p>
+            <div class="course-card__content">
+              <h3>{{ course.name }}</h3>
+              <p class="course-card__description">{{ course.description }}</p>
+            </div>
             <div class="course-card__footer">
-              <span>Owner: {{ ownerEmail() }}</span>
-              <span>{{ course.createdAt | date: 'medium' }}</span>
+              <span class="course-card__meta">Owner: {{ ownerEmail() }}</span>
+              <span class="course-card__meta">{{ course.createdAt | date: 'medium' }}</span>
             </div>
           </a>
         }
