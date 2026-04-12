@@ -38,14 +38,32 @@
             @for (answer of question.answers; track answer.id; let answerIndex = $index) {
               <div
                 class="quiz-review-card__answer"
-                [class.quiz-review-card__answer--selected]="isSelected(question.questionId, answer.id)"
-                [class.quiz-review-card__answer--correct]="isCorrect(question.questionId, answer.id)"
+                [class.quiz-review-card__answer--selected-correct]="isSelectedCorrect(question.questionId, answer.id)"
+                [class.quiz-review-card__answer--selected-wrong]="isSelectedWrong(question.questionId, answer.id)"
+                [class.quiz-review-card__answer--missed-correct]="isMissedCorrect(question.questionId, answer.id)"
               >
                 <span class="quiz-review-card__letter">{{ answerLabel(answerIndex) }}</span>
-                <span>{{ answer.content }}</span>
+                <div class="quiz-review-card__answer-copy">
+                  <span class="quiz-review-card__answer-text">{{ answer.content }}</span>
+                  @if (answerStateLabel(question.questionId, answer.id); as stateLabel) {
+                    <div class="quiz-review-card__answer-badges">
+                      <span
+                        class="quiz-review-card__answer-badge"
+                        [class.quiz-review-card__answer-badge--wrong]="isSelectedWrong(question.questionId, answer.id)"
+                        [class.quiz-review-card__answer-badge--correct]="!isSelectedWrong(question.questionId, answer.id)"
+                      >
+                        {{ stateLabel }}
+                      </span>
+                    </div>
+                  }
+                </div>
               </div>
             }
           </div>
+
+          @if (reviewHint(question.questionId); as hint) {
+            <p class="quiz-review-card__hint">{{ hint }}</p>
+          }
         </article>
       }
     </section>

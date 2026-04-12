@@ -62,6 +62,63 @@ export class QuizAttemptReviewPageComponent {
     return this.attempt()?.questions.find((question) => question.questionId === questionId)?.correctAnswerIds.includes(answerId) ?? false;
   }
 
+  isSelectedWrong(questionId: number, answerId: number): boolean {
+    return this.isSelected(questionId, answerId) && !this.isCorrect(questionId, answerId);
+  }
+
+  isSelectedCorrect(questionId: number, answerId: number): boolean {
+    return this.isSelected(questionId, answerId) && this.isCorrect(questionId, answerId);
+  }
+
+  isMissedCorrect(questionId: number, answerId: number): boolean {
+    return !this.isSelected(questionId, answerId) && this.isCorrect(questionId, answerId);
+  }
+
+  answerStateLabel(questionId: number, answerId: number): string | null {
+    if (this.isSelectedCorrect(questionId, answerId)) {
+      return 'Your answer is correct';
+    }
+
+    if (this.isSelectedWrong(questionId, answerId)) {
+      return 'Your answer is incorrect';
+    }
+
+    if (this.isMissedCorrect(questionId, answerId)) {
+      return 'Correct answer';
+    }
+
+    return null;
+  }
+
+  reviewHint(questionId: number): string | null {
+    const question = this.attempt()?.questions.find((entry) => entry.questionId === questionId);
+
+    if (!question || question.answeredCorrectly) {
+      return null;
+    }
+
+    const selectedWrongCount = question.selectedAnswerIds.filter((answerId) => !question.correctAnswerIds.includes(answerId)).length;
+    const missedCorrectCount = question.correctAnswerIds.filter((answerId) => !question.selectedAnswerIds.includes(answerId)).length;
+
+    if (selectedWrongCount > 0 && missedCorrectCount > 0) {
+      return 'You selected an incorrect answer and missed a correct one.';
+    }
+
+    if (selectedWrongCount > 0) {
+      return selectedWrongCount === 1
+        ? 'You selected an incorrect answer.'
+        : `You selected ${selectedWrongCount} incorrect answers.`;
+    }
+
+    if (missedCorrectCount > 0) {
+      return missedCorrectCount === 1
+        ? 'You missed a correct answer.'
+        : `You missed ${missedCorrectCount} correct answers.`;
+    }
+
+    return null;
+  }
+
   answerLabel(index: number): string {
     return String.fromCharCode(65 + index);
   }
