@@ -77,9 +77,28 @@ export const routes: Routes = [
     component: QuestionEditorPageComponent
   },
   {
-    path: 'courses/:courseId/questions',
+    path: 'courses/:courseId',
     canActivate: [authGuard],
-    component: CourseQuestionsPageComponent
+    component: CourseDetailsPageComponent,
+    children: [
+      {
+        path: '',
+        redirectTo: 'quizzes',
+        pathMatch: 'full'
+      },
+      {
+        path: 'quizzes',
+        component: CourseQuizzesPageComponent
+      },
+      {
+        path: 'questions',
+        component: CourseQuestionsPageComponent
+      },
+      {
+        path: 'categories',
+        component: CourseCategoriesPageComponent
+      }
+    ]
   },
   {
     path: 'courses/:courseId/quizzes/new',
@@ -109,29 +128,14 @@ export const routes: Routes = [
     component: QuizOverviewPageComponent
   },
   {
-    path: 'courses/:courseId/quizzes',
-    canActivate: [authGuard],
-    component: CourseQuizzesPageComponent
-  },
-  {
     path: 'courses/:courseId/attempts/:attemptId',
     canActivate: [authGuard],
     component: QuizAttemptReviewPageComponent
   },
   {
-    path: 'courses/:courseId/categories',
-    canActivate: [authGuard],
-    component: CourseCategoriesPageComponent
-  },
-  {
     path: 'courses/:courseId/edit',
     canActivate: [authGuard],
     component: CourseEditPageComponent
-  },
-  {
-    path: 'courses/:courseId',
-    canActivate: [authGuard],
-    component: CourseDetailsPageComponent
   },
   {
     path: 'session',

@@ -10,13 +10,13 @@ import { CategoryService } from '../../core/categories/category.service';
 import { CourseDto } from '../../core/courses/course.models';
 import { CourseService } from '../../core/courses/course.service';
 import { extractApiMessage } from '../../shared/api/api-error.utils';
+import { CourseWorkspaceSectionComponent } from '../../shared/ui/course-workspace-section/course-workspace-section.component';
 import { ToastStackComponent } from '../../shared/ui/toast-stack/toast-stack.component';
 import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
-import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/workspace-topbar.component';
 
 @Component({
   selector: 'app-course-categories-page',
-  imports: [DatePipe, RouterLink, ToastStackComponent, WorkspaceTopbarComponent],
+  imports: [DatePipe, RouterLink, CourseWorkspaceSectionComponent, ToastStackComponent],
   templateUrl: './course-categories-page.component.html',
   styleUrl: './course-categories-page.component.scss'
 })
@@ -29,12 +29,15 @@ export class CourseCategoriesPageComponent {
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private toastId = 0;
 
-  readonly courseId = Number.parseInt(this.route.snapshot.paramMap.get('courseId') ?? '', 10);
+  readonly courseId = this.resolveCourseId();
   readonly course = signal<CourseDto | null>(null);
   readonly categories = signal<CategoryDto[]>([]);
   readonly isLoading = signal(true);
+  readonly loadError = signal<string | null>(null);
   readonly searchTerm = signal('');
+  readonly page = signal(0);
   readonly errorToasts = signal<ToastItem[]>([]);
+  readonly pageSize = 9;
   readonly canManageCourse = computed(() => {
     const currentCourse = this.course();
     const currentUserId = this.authService.user()?.id;
@@ -49,6 +52,18 @@ export class CourseCategoriesPageComponent {
     }
 
     return this.categories().filter((category) => category.name.toLowerCase().includes(query));
+  });
+  readonly totalPages = computed(() => {
+    const length = this.filteredCategories().length;
+    return length ? Math.ceil(length / this.pageSize) : 0;
+  });
+  readonly visibleCategories = computed(() => {
+    const start = this.page() * this.pageSize;
+    return this.filteredCategories().slice(start, start + this.pageSize);
+  });
+  readonly pageLabel = computed(() => {
+    const totalPages = this.totalPages();
+    return totalPages ? `Page ${this.page() + 1} of ${totalPages}` : 'Page 0 of 0';
   });
 
   constructor() {
@@ -74,6 +89,21 @@ export class CourseCategoriesPageComponent {
 
   updateSearchTerm(value: string): void {
     this.searchTerm.set(value);
+    this.page.set(0);
+  }
+
+  goToPreviousPage(): void {
+    this.page.update((page) => Math.max(page - 1, 0));
+  }
+
+  goToNextPage(): void {
+    const totalPages = this.totalPages();
+
+    if (!totalPages) {
+      return;
+    }
+
+    this.page.update((page) => Math.min(page + 1, totalPages - 1));
   }
 
   trackByCategoryId(_index: number, category: CategoryDto): number {
@@ -100,6 +130,7 @@ export class CourseCategoriesPageComponent {
     }
 
     this.isLoading.set(true);
+    this.loadError.set(null);
 
     forkJoin({
       course: this.courseService.fetchCourse(this.courseId),
@@ -112,11 +143,20 @@ export class CourseCategoriesPageComponent {
           this.categories.set(categories);
           this.isLoading.set(false);
         },
-        error: (error) => {
+        error: (error: unknown) => {
           this.isLoading.set(false);
-          this.pushErrorToast(extractApiMessage(error) ?? 'Unable to load course categories right now.');
+          const message = extractApiMessage(error) ?? 'Unable to load course categories right now.';
+          this.loadError.set(message);
+          this.pushErrorToast(message);
         }
       });
+  }
+
+  private resolveCourseId(): number {
+    return Number.parseInt(
+      this.route.parent?.snapshot.paramMap.get('courseId') ?? this.route.snapshot.paramMap.get('courseId') ?? '',
+      10
+    );
   }
 
   private pushErrorToast(message: string): void {

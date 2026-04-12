@@ -7,16 +7,17 @@
       <p class="app-eyebrow">Course Details</p>
 
       @if (course(); as currentCourse) {
-        <div class="course-details-hero__actions">
-          <a class="course-details-link" [routerLink]="['/courses']">Back to Courses</a>
-          @if (canManageCourse()) {
-            <a class="course-details-link course-details-link--primary" [routerLink]="['/courses', currentCourse.id, 'edit']">
-              Edit Details
-            </a>
-          }
-        </div>
-      } @else {
+      <div class="course-details-hero__actions">
         <a class="course-details-link" [routerLink]="['/courses']">Back to Courses</a>
+        @if (canManageCourse()) {
+        <a class="course-details-link course-details-link--primary"
+          [routerLink]="['/courses', currentCourse.id, 'edit']">
+          Edit Details
+        </a>
+        }
+      </div>
+      } @else {
+      <a class="course-details-link" [routerLink]="['/courses']">Back to Courses</a>
       }
     </div>
 
@@ -25,78 +26,43 @@
     </div>
 
     @if (course()) {
-      <div class="course-details-hero__summary">
-        <p class="course-details-hero__description">{{ course()!.description }}</p>
-        <p class="course-details-hero__owner">Owner {{ course()!.ownerEmail }}</p>
-        <p class="course-details-hero__created">Created {{ course()!.createdAt | date: 'mediumDate' }}</p>
-      </div>
+    <div class="course-details-hero__summary">
+      <p class="course-details-hero__description">{{ course()!.description }}</p>
+      <p class="course-details-hero__owner">Owner {{ course()!.ownerEmail }}</p>
+      <p class="course-details-hero__created">Created {{ course()!.createdAt | date: 'mediumDate' }}</p>
+    </div>
     }
   </section>
 
   @if (isLoading()) {
-    <section class="app-panel course-details-empty">
-      <p class="app-copy">Loading course details...</p>
-    </section>
+  <section class="app-panel course-details-empty">
+    <p class="app-copy">Loading course details...</p>
+  </section>
   } @else if (course()) {
-    <div class="course-details-overview-grid">
-      <section class="app-panel course-details-overview">
-        <div class="course-details-overview__copy">
-          <p class="app-eyebrow">Next Layer</p>
-          <h2>Categories</h2>
-          <p class="app-copy">
-            {{ canManageCourse()
-              ? 'Start shaping the structure of this course before you move into questions and quizzes.'
-              : 'Browse the taxonomy used inside this course and understand how the material is organized.' }}
-          </p>
-        </div>
+  <section class="app-panel course-workspace-shell">
+    <nav class="course-workspace-tabs" aria-label="Course workspace sections">
+      <a class="course-workspace-tab" [routerLink]="['/courses', course()!.id, 'quizzes']"
+        routerLinkActive="course-workspace-tab--active" [routerLinkActiveOptions]="{ exact: true }">
+        Quizzes
+      </a>
+      <a class="course-workspace-tab" [routerLink]="['/courses', course()!.id, 'questions']"
+        routerLinkActive="course-workspace-tab--active" [routerLinkActiveOptions]="{ exact: true }">
+        Questions
+      </a>
+      <a class="course-workspace-tab" [routerLink]="['/courses', course()!.id, 'categories']"
+        routerLinkActive="course-workspace-tab--active" [routerLinkActiveOptions]="{ exact: true }">
+        Categories
+      </a>
+    </nav>
 
-        <div class="course-details-overview__actions">
-          <a class="course-details-link course-details-link--primary" [routerLink]="['/courses', course()!.id, 'categories']">
-            {{ canManageCourse() ? 'Manage Categories' : 'Browse Categories' }}
-          </a>
-        </div>
-      </section>
-
-      <section class="app-panel course-details-overview">
-        <div class="course-details-overview__copy">
-          <p class="app-eyebrow">Question Bank</p>
-          <h2>Questions</h2>
-          <p class="app-copy">
-            {{ canManageCourse()
-              ? 'Browse the bank, filter by taxonomy, and open focused editing when a question needs a new version.'
-              : 'Browse the question bank in read-only mode to understand what this course covers before starting a quiz.' }}
-          </p>
-        </div>
-
-        <div class="course-details-overview__actions">
-          <a class="course-details-link course-details-link--primary" [routerLink]="['/courses', course()!.id, 'questions']">
-            {{ canManageCourse() ? 'Manage Questions' : 'Browse Questions' }}
-          </a>
-        </div>
-      </section>
-
-      <section class="app-panel course-details-overview">
-        <div class="course-details-overview__copy">
-          <p class="app-eyebrow">Quiz Layer</p>
-          <h2>Quizzes</h2>
-          <p class="app-copy">
-            {{ canManageCourse()
-              ? 'Bundle questions into fixed, random, or category-based quiz runs and review exact-match results after each attempt.'
-              : 'Open the quiz library, play available quizzes, and review only your own attempt history and statistics.' }}
-          </p>
-        </div>
-
-        <div class="course-details-overview__actions">
-          <a class="course-details-link course-details-link--primary" [routerLink]="['/courses', course()!.id, 'quizzes']">
-            {{ canManageCourse() ? 'Manage Quizzes' : 'Open Quizzes' }}
-          </a>
-        </div>
-      </section>
+    <div class="course-workspace-content">
+      <router-outlet></router-outlet>
     </div>
+  </section>
   } @else {
-    <section class="app-panel course-details-empty">
-      <p class="course-details-empty__title">Course unavailable.</p>
-      <p class="app-copy">We could not open this course. It may have been removed or you may not have access to it.</p>
-    </section>
+  <section class="app-panel course-details-empty">
+    <p class="course-details-empty__title">Course unavailable.</p>
+    <p class="app-copy">We could not open this course. It may have been removed or you may not have access to it.</p>
+  </section>
   }
 </main>

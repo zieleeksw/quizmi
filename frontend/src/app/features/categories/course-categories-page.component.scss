@@ -106,7 +106,7 @@
 .course-categories-grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .course-category-card {
@@ -204,17 +204,13 @@
 }
 
 @media (max-width: 900px) {
-  .course-categories-hero__topline,
-  .course-categories-panel__header {
-    flex-direction: column;
-    align-items: stretch;
+  .course-categories-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  .course-categories-hero__actions {
-    justify-content: flex-start;
-  }
-
-  .course-categories-panel__search {
-    width: 100%;
+@media (max-width: 640px) {
+  .course-categories-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -12,13 +12,13 @@ import { CourseService } from '../../core/courses/course.service';
 import { QuestionDto, QuestionPageDto } from '../../core/questions/question.models';
 import { QuestionService } from '../../core/questions/question.service';
 import { extractApiMessage } from '../../shared/api/api-error.utils';
+import { CourseWorkspaceSectionComponent } from '../../shared/ui/course-workspace-section/course-workspace-section.component';
 import { ToastStackComponent } from '../../shared/ui/toast-stack/toast-stack.component';
 import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
-import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/workspace-topbar.component';
 
 @Component({
   selector: 'app-course-questions-page',
-  imports: [DatePipe, RouterLink, ToastStackComponent, WorkspaceTopbarComponent],
+  imports: [DatePipe, RouterLink, CourseWorkspaceSectionComponent, ToastStackComponent],
   templateUrl: './course-questions-page.component.html',
   styleUrl: './course-questions-page.component.scss'
 })
@@ -32,12 +32,14 @@ export class CourseQuestionsPageComponent {
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private toastId = 0;
 
-  readonly courseId = Number.parseInt(this.route.snapshot.paramMap.get('courseId') ?? '', 10);
+  readonly courseId = this.resolveCourseId();
   readonly course = signal<CourseDto | null>(null);
   readonly categories = signal<CategoryDto[]>([]);
   readonly preview = signal<QuestionPageDto | null>(null);
   readonly isLoadingPage = signal(true);
   readonly isLoadingPreview = signal(false);
+  readonly pageLoadError = signal<string | null>(null);
+  readonly previewLoadError = signal<string | null>(null);
   readonly searchTerm = signal('');
   readonly selectedCategoryId = signal<number | 'all'>('all');
   readonly requestedPage = signal(0);
@@ -140,6 +142,7 @@ export class CourseQuestionsPageComponent {
     }
 
     this.isLoadingPage.set(true);
+    this.pageLoadError.set(null);
 
     forkJoin({
       course: this.courseService.fetchCourse(this.courseId),
@@ -153,9 +156,11 @@ export class CourseQuestionsPageComponent {
           this.isLoadingPage.set(false);
           this.loadPreview();
         },
-        error: (error) => {
+        error: (error: unknown) => {
           this.isLoadingPage.set(false);
-          this.pushErrorToast(extractApiMessage(error) ?? 'Unable to load the question bank right now.');
+          const message = extractApiMessage(error) ?? 'Unable to load the question bank right now.';
+          this.pageLoadError.set(message);
+          this.pushErrorToast(message);
         }
       });
   }
@@ -166,6 +171,7 @@ export class CourseQuestionsPageComponent {
     }
 
     this.isLoadingPreview.set(true);
+    this.previewLoadError.set(null);
     const selectedCategoryId = this.selectedCategoryId();
 
     this.questionService.fetchQuestionPreview(
@@ -182,11 +188,20 @@ export class CourseQuestionsPageComponent {
           this.requestedPage.set(preview.pageNumber);
           this.isLoadingPreview.set(false);
         },
-        error: (error) => {
+        error: (error: unknown) => {
           this.isLoadingPreview.set(false);
-          this.pushErrorToast(extractApiMessage(error) ?? 'Unable to refresh question results right now.');
+          const message = extractApiMessage(error) ?? 'Unable to refresh question results right now.';
+          this.previewLoadError.set(message);
+          this.pushErrorToast(message);
         }
       });
+  }
+
+  private resolveCourseId(): number {
+    return Number.parseInt(
+      this.route.parent?.snapshot.paramMap.get('courseId') ?? this.route.snapshot.paramMap.get('courseId') ?? '',
+      10
+    );
   }
 
   private pushErrorToast(message: string): void {

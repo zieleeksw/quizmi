@@ -2,7 +2,7 @@ import { finalize } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { CourseDto } from '../../core/courses/course.models';
@@ -14,13 +14,14 @@ import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/works
 
 @Component({
   selector: 'app-course-details-page',
-  imports: [DatePipe, RouterLink, ToastStackComponent, WorkspaceTopbarComponent],
+  imports: [DatePipe, RouterLink, RouterLinkActive, RouterOutlet, ToastStackComponent, WorkspaceTopbarComponent],
   templateUrl: './course-details-page.component.html',
   styleUrl: './course-details-page.component.scss'
 })
 export class CourseDetailsPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
@@ -77,11 +78,20 @@ export class CourseDetailsPageComponent {
       .subscribe({
         next: (course) => {
           this.course.set(course);
+          this.ensureWorkspaceRoute(course.id);
         },
         error: (error) => {
           this.pushToast(extractApiMessage(error) ?? 'Unable to load this course right now.');
         }
       });
+  }
+
+  private ensureWorkspaceRoute(courseId: number): void {
+    const normalizedUrl = this.router.url.split('?')[0].replace(/\/+$/, '');
+
+    if (normalizedUrl === `/courses/${courseId}`) {
+      void this.router.navigate(['/courses', courseId, 'quizzes'], { replaceUrl: true });
+    }
   }
 
   private pushToast(message: string): void {

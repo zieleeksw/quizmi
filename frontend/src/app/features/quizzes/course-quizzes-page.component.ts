@@ -1,7 +1,7 @@
 import { forkJoin } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { AttemptService } from '../../core/attempts/attempt.service';
 import { QuizSessionDto } from '../../core/attempts/attempt.models';
@@ -12,13 +12,13 @@ import { QuestionService } from '../../core/questions/question.service';
 import { QuizDto } from '../../core/quizzes/quiz.models';
 import { QuizService } from '../../core/quizzes/quiz.service';
 import { extractApiMessage } from '../../shared/api/api-error.utils';
+import { CourseWorkspaceSectionComponent } from '../../shared/ui/course-workspace-section/course-workspace-section.component';
 import { ToastStackComponent } from '../../shared/ui/toast-stack/toast-stack.component';
 import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
-import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/workspace-topbar.component';
 
 @Component({
   selector: 'app-course-quizzes-page',
-  imports: [RouterLink, ToastStackComponent, WorkspaceTopbarComponent],
+  imports: [CourseWorkspaceSectionComponent, ToastStackComponent],
   templateUrl: './course-quizzes-page.component.html',
   styleUrl: './course-quizzes-page.component.scss'
 })
@@ -34,12 +34,13 @@ export class CourseQuizzesPageComponent {
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private toastId = 0;
 
-  readonly courseId = Number.parseInt(this.route.snapshot.paramMap.get('courseId') ?? '', 10);
+  readonly courseId = this.resolveCourseId();
   readonly course = signal<CourseDto | null>(null);
   readonly quizzes = signal<QuizDto[]>([]);
   readonly sessions = signal<QuizSessionDto[]>([]);
   readonly questionCount = signal(0);
   readonly isLoading = signal(true);
+  readonly loadError = signal<string | null>(null);
   readonly searchTerm = signal('');
   readonly page = signal(0);
   readonly toasts = signal<ToastItem[]>([]);
@@ -135,24 +136,12 @@ export class CourseQuizzesPageComponent {
     return quiz.id;
   }
 
-  quizSummary(quiz: QuizDto): string {
-    if (quiz.mode === 'manual') {
-      return `Manual quiz with ${quiz.resolvedQuestionCount} selected question${quiz.resolvedQuestionCount === 1 ? '' : 's'}.`;
-    }
-
-    if (quiz.mode === 'random') {
-      return `Draws ${quiz.randomCount ?? quiz.resolvedQuestionCount} question${(quiz.randomCount ?? quiz.resolvedQuestionCount) === 1 ? '' : 's'} from the course bank.`;
-    }
-
-    return `Pulls ${quiz.randomCount ?? quiz.resolvedQuestionCount} question${(quiz.randomCount ?? quiz.resolvedQuestionCount) === 1 ? '' : 's'} from ${quiz.categories.length} selected categor${quiz.categories.length === 1 ? 'y' : 'ies'}.`;
+  quizModeLabel(mode: QuizDto['mode']): string {
+    return mode.toUpperCase();
   }
 
   hasSession(quizId: number): boolean {
     return this.sessions().some((session) => session.quizId === quizId);
-  }
-
-  quizModeLabel(mode: QuizDto['mode']): string {
-    return mode.toUpperCase();
   }
 
   private loadPage(): void {
@@ -163,27 +152,62 @@ export class CourseQuizzesPageComponent {
     }
 
     this.isLoading.set(true);
+    this.loadError.set(null);
 
     forkJoin({
       course: this.courseService.fetchCourse(this.courseId),
-      questions: this.questionService.fetchQuestions(this.courseId),
-      quizzes: this.quizService.fetchQuizzes(this.courseId),
-      sessions: this.attemptService.fetchSessions(this.courseId)
+      quizzes: this.quizService.fetchQuizzes(this.courseId)
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ course, questions, quizzes, sessions }) => {
+        next: ({ course, quizzes }) => {
           this.course.set(course);
-          this.questionCount.set(questions.length);
           this.quizzes.set(quizzes);
-          this.sessions.set(sessions);
           this.isLoading.set(false);
+          this.loadSupplementalData();
         },
-        error: (error) => {
+        error: (error: unknown) => {
           this.isLoading.set(false);
-          this.pushToast('Load failed', extractApiMessage(error) ?? 'Unable to load the quiz workspace right now.', 'error');
+          const message = extractApiMessage(error) ?? 'Unable to load the quiz workspace right now.';
+          this.loadError.set(message);
+          this.pushToast('Load failed', message, 'error');
         }
       });
+  }
+
+  private loadSupplementalData(): void {
+    this.attemptService.fetchSessions(this.courseId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (sessions) => {
+          this.sessions.set(sessions);
+        },
+        error: (error: unknown) => {
+          this.pushToast('Sessions unavailable', extractApiMessage(error) ?? 'Unable to load your quiz sessions right now.', 'error');
+        }
+      });
+
+    if (!this.canManageCourse()) {
+      return;
+    }
+
+    this.questionService.fetchQuestions(this.courseId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (questions) => {
+          this.questionCount.set(questions.length);
+        },
+        error: (error: unknown) => {
+          this.pushToast('Question count unavailable', extractApiMessage(error) ?? 'Unable to load course questions right now.', 'error');
+        }
+      });
+  }
+
+  private resolveCourseId(): number {
+    return Number.parseInt(
+      this.route.parent?.snapshot.paramMap.get('courseId') ?? this.route.snapshot.paramMap.get('courseId') ?? '',
+      10
+    );
   }
 
   private pushToast(title: string, message: string, tone: ToastItem['tone']): void {

@@ -1,187 +1,145 @@
-<main class="workspace-shell course-questions-shell">
+<section class="course-questions-panel">
   <app-toast-stack [toasts]="errorToasts()" (dismissed)="dismissToast($event)" />
-  <app-workspace-topbar />
 
-  <section class="app-panel course-questions-hero">
-    <div class="course-questions-hero__topline">
-      <p class="app-eyebrow">Question Bank</p>
-
-      @if (course()) {
-        <a class="course-questions-link" [routerLink]="['/courses', course()!.id]">Back to Course</a>
-      } @else {
-        <a class="course-questions-link" [routerLink]="['/courses']">Back to Courses</a>
-      }
-    </div>
-
-    <div class="course-questions-hero__copy">
-      <h1 class="app-title">{{ course()?.name ?? 'Question bank' }}</h1>
-      <p class="app-copy">
-        {{ canManageCourse()
-          ? 'Browse the course bank, filter by category, and open dedicated editing whenever a question needs a new version.'
-          : 'Browse the course bank in read-only mode and inspect the structure before you jump into quizzes.' }}
-      </p>
-    </div>
-  </section>
-
-  <section class="app-panel course-questions-panel">
-    <div class="course-questions-panel__header">
-      <div>
-        <p class="app-eyebrow">{{ canManageCourse() ? 'Your Questions' : 'Course Questions' }}</p>
-        <h2>Course question library</h2>
-      </div>
-
-      @if (course() && hasCategories() && canManageCourse()) {
-        <a class="course-questions-link course-questions-link--primary" [routerLink]="['/courses', course()!.id, 'questions', 'new']">
+  <app-course-workspace-section
+    [eyebrow]="canManageCourse() ? 'Your Questions' : 'Course Questions'"
+    title="Course question library"
+    searchPlaceholder="Search by wording or category"
+    [searchValue]="searchTerm()"
+    [showPagination]="!isLoadingPage() && !pageLoadError() && !previewLoadError() && previewQuestions().length > 0"
+    [pageLabel]="pageLabel()"
+    [previousDisabled]="!preview()?.hasPrevious"
+    [nextDisabled]="!preview()?.hasNext"
+    (searchValueChange)="updateSearchTerm($event)"
+    (previousClicked)="goToPreviousPage()"
+    (nextClicked)="goToNextPage()"
+  >
+    @if (course() && hasCategories() && canManageCourse()) {
+      <a workspace-action class="course-questions-link course-questions-link--primary" [routerLink]="['/courses', course()!.id, 'questions', 'new']">
+        Create
+      </a>
+    } @else if (course() && canManageCourse()) {
+      <div workspace-action class="course-questions-disabled-cta" [attr.title]="createQuestionHint">
+        <button class="course-questions-link course-questions-link--primary course-questions-link--disabled" type="button" disabled aria-describedby="create-question-hint">
           Create
-        </a>
-      } @else if (course() && canManageCourse()) {
-        <div class="course-questions-disabled-cta" [attr.title]="createQuestionHint">
-          <button
-            class="course-questions-link course-questions-link--primary course-questions-link--disabled"
-            type="button"
-            disabled
-            aria-describedby="create-question-hint"
-          >
-            Create
-          </button>
-          <span id="create-question-hint" class="course-questions-disabled-cta__tooltip">
-            {{ createQuestionHint }}
-          </span>
-        </div>
-      }
-    </div>
+        </button>
+        <span id="create-question-hint" class="course-questions-disabled-cta__tooltip">
+          {{ createQuestionHint }}
+        </span>
+      </div>
+    }
 
-    <div class="course-questions-panel__search">
-      <input
-        class="app-input"
-        type="search"
-        placeholder="Search by wording or category"
-        [value]="searchTerm()"
-        (input)="updateSearchTerm(($any($event.target)).value)"
-      />
-    </div>
-
-    <div class="course-questions-filter-row">
-      <button
-        class="course-question-chip"
-        type="button"
-        [class.course-question-chip--active]="selectedCategoryId() === 'all'"
-        (click)="selectCategory('all')"
-      >
+    <div workspace-filters class="course-questions-filter-row">
+      <button class="course-question-chip" type="button" [class.course-question-chip--active]="selectedCategoryId() === 'all'" (click)="selectCategory('all')">
         All categories
       </button>
 
       @for (category of categories(); track category.id) {
-        <button
-          class="course-question-chip"
-          type="button"
-          [class.course-question-chip--active]="selectedCategoryId() === category.id"
-          (click)="selectCategory(category.id)"
-        >
+        <button class="course-question-chip" type="button" [class.course-question-chip--active]="selectedCategoryId() === category.id" (click)="selectCategory(category.id)">
           {{ category.name }}
         </button>
       }
     </div>
 
-    @if (isLoadingPage()) {
-      <p class="app-copy">Loading question bank...</p>
-    } @else if (!categories().length) {
-      <div class="course-questions-empty">
-        <p class="course-questions-empty__title">{{ canManageCourse() ? 'Create a category first.' : 'No categories yet.' }}</p>
-        <p class="app-copy">
-          {{ canManageCourse()
+    <div workspace-body>
+      @if (isLoadingPage()) {
+        <p class="app-copy">Loading question bank...</p>
+      } @else if (pageLoadError()) {
+        <div class="course-questions-empty">
+          <p class="course-questions-empty__title">Question bank unavailable.</p>
+          <p class="app-copy">{{ pageLoadError() }}</p>
+        </div>
+      } @else if (!categories().length) {
+        <div class="course-questions-empty">
+          <p class="course-questions-empty__title">{{ canManageCourse() ? 'Create a category first.' : 'No categories yet.' }}</p>
+          <p class="app-copy">
+            {{ canManageCourse()
             ? 'Questions use your managed categories, so start there before building the bank.'
             : 'This course does not expose any categories or questions yet.' }}
-        </p>
-      </div>
-    } @else if (isLoadingPreview() && !previewQuestions().length) {
-      <p class="app-copy">Loading questions...</p>
-    } @else if (!previewQuestions().length) {
-      <div class="course-questions-empty">
-        <p class="course-questions-empty__title">No questions match this filter.</p>
-        <p class="app-copy">
-          {{ canManageCourse()
+          </p>
+        </div>
+      } @else if (isLoadingPreview() && !previewQuestions().length) {
+        <p class="app-copy">Loading questions...</p>
+      } @else if (previewLoadError()) {
+        <div class="course-questions-empty">
+          <p class="course-questions-empty__title">Questions unavailable.</p>
+          <p class="app-copy">{{ previewLoadError() }}</p>
+        </div>
+      } @else if (!previewQuestions().length) {
+        <div class="course-questions-empty">
+          <p class="course-questions-empty__title">No questions match this filter.</p>
+          <p class="app-copy">
+            {{ canManageCourse()
             ? 'Try a different category, clear the search phrase, or add the first question to this course.'
             : 'Try a different category or clear the search phrase to browse the visible question bank.' }}
-        </p>
-      </div>
-    } @else {
-      <div class="course-questions-list">
-        @for (question of previewQuestions(); track trackByQuestionId($index, question)) {
-          @if (questionEditorLink(question); as link) {
-            <a
-              class="course-question-card course-question-card--link"
-              [routerLink]="link"
-            >
-              <div class="course-question-card__top">
-                <div class="course-question-card__content">
-                  <h3>{{ question.prompt }}</h3>
-                  <div class="course-question-card__badges">
-                    @for (category of question.categories; track category.id) {
-                      <span class="course-question-card__badge">{{ category.name }}</span>
-                    }
+          </p>
+        </div>
+      } @else {
+        <div class="course-questions-list">
+          @for (question of previewQuestions(); track trackByQuestionId($index, question)) {
+            @if (questionEditorLink(question); as link) {
+              <a class="course-question-card course-question-card--link" [routerLink]="link">
+                <div class="course-question-card__top">
+                  <div class="course-question-card__content">
+                    <h3>{{ question.prompt }}</h3>
+                    <div class="course-question-card__badges">
+                      @for (category of question.categories; track category.id) {
+                        <span class="course-question-card__badge">{{ category.name }}</span>
+                      }
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div class="course-question-card__answers">
-                @for (answer of question.answers; track answer.id) {
-                  <div class="course-question-card__answer" [class.course-question-card__answer--correct]="answer.correct">
-                    <span>{{ answer.displayOrder + 1 }}</span>
-                    <strong>{{ answer.content }}</strong>
-                  </div>
-                }
-              </div>
+                <div class="course-question-card__answers">
+                  @for (answer of question.answers; track answer.id) {
+                    <div class="course-question-card__answer" [class.course-question-card__answer--correct]="answer.correct">
+                      <span>{{ answer.displayOrder + 1 }}</span>
+                      <strong>{{ answer.content }}</strong>
+                    </div>
+                  }
+                </div>
 
-              <div class="course-question-card__footer">
-                <span class="course-question-card__meta">Created {{ question.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
-                @if (isQuestionUpdated(question)) {
-                  <span class="course-question-card__meta">Updated {{ question.updatedAt | date: 'd MMM yyyy, HH:mm' }}</span>
-                }
-              </div>
-            </a>
-          } @else {
-            <article class="course-question-card">
-              <div class="course-question-card__top">
-                <div class="course-question-card__content">
-                  <h3>{{ question.prompt }}</h3>
-                  <div class="course-question-card__badges">
-                    @for (category of question.categories; track category.id) {
-                      <span class="course-question-card__badge">{{ category.name }}</span>
-                    }
+                <div class="course-question-card__footer">
+                  <span class="course-question-card__meta">Created {{ question.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
+                  @if (isQuestionUpdated(question)) {
+                    <span class="course-question-card__meta">Updated {{ question.updatedAt | date: 'd MMM yyyy, HH:mm' }}</span>
+                  }
+                </div>
+              </a>
+            } @else {
+              <article class="course-question-card">
+                <div class="course-question-card__top">
+                  <div class="course-question-card__content">
+                    <h3>{{ question.prompt }}</h3>
+                    <div class="course-question-card__badges">
+                      @for (category of question.categories; track category.id) {
+                        <span class="course-question-card__badge">{{ category.name }}</span>
+                      }
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div class="course-question-card__answers">
-                @for (answer of question.answers; track answer.id) {
-                  <div class="course-question-card__answer" [class.course-question-card__answer--correct]="answer.correct">
-                    <span>{{ answer.displayOrder + 1 }}</span>
-                    <strong>{{ answer.content }}</strong>
-                  </div>
-                }
-              </div>
+                <div class="course-question-card__answers">
+                  @for (answer of question.answers; track answer.id) {
+                    <div class="course-question-card__answer" [class.course-question-card__answer--correct]="answer.correct">
+                      <span>{{ answer.displayOrder + 1 }}</span>
+                      <strong>{{ answer.content }}</strong>
+                    </div>
+                  }
+                </div>
 
-              <div class="course-question-card__footer">
-                <span class="course-question-card__meta">Created {{ question.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
-                @if (isQuestionUpdated(question)) {
-                  <span class="course-question-card__meta">Updated {{ question.updatedAt | date: 'd MMM yyyy, HH:mm' }}</span>
-                }
-              </div>
-            </article>
+                <div class="course-question-card__footer">
+                  <span class="course-question-card__meta">Created {{ question.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
+                  @if (isQuestionUpdated(question)) {
+                    <span class="course-question-card__meta">Updated {{ question.updatedAt | date: 'd MMM yyyy, HH:mm' }}</span>
+                  }
+                </div>
+              </article>
+            }
           }
-        }
-      </div>
+        </div>
+      }
+    </div>
 
-      <div class="course-questions-pagination">
-        <button class="course-questions-pagination__button" type="button" [disabled]="!preview()?.hasPrevious" (click)="goToPreviousPage()">
-          Previous
-        </button>
-        <span class="course-question-card__meta">{{ pageLabel() }}</span>
-        <button class="course-questions-pagination__button" type="button" [disabled]="!preview()?.hasNext" (click)="goToNextPage()">
-          Next
-        </button>
-      </div>
-    }
-  </section>
-</main>
+  </app-course-workspace-section>
+</section>

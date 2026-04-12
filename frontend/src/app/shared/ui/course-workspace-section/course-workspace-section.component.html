@@ -1,0 +1,57 @@
+<section class="workspace-section">
+  <div class="workspace-section__header">
+    <div class="workspace-section__heading">
+      <p class="app-eyebrow">{{ eyebrow() }}</p>
+      <h2>{{ title() }}</h2>
+    </div>
+
+    <div class="workspace-section__action">
+      <ng-content select="[workspace-action]"></ng-content>
+    </div>
+  </div>
+
+  @if (showSearch()) {
+    <div class="workspace-section__search">
+      <input
+        class="app-input"
+        type="search"
+        [placeholder]="searchPlaceholder()"
+        [value]="searchValue()"
+        [attr.aria-label]="searchPlaceholder()"
+        (input)="handleSearchInput(($any($event.target)).value)"
+      />
+    </div>
+  }
+
+  <div class="workspace-section__filters">
+    <ng-content select="[workspace-filters]"></ng-content>
+  </div>
+
+  <div class="workspace-section__body">
+    <ng-content select="[workspace-body]"></ng-content>
+  </div>
+
+  @if (showPagination()) {
+    <div class="workspace-section__pagination">
+      <button
+        class="workspace-section__pagination-button"
+        type="button"
+        [disabled]="previousDisabled()"
+        (click)="handlePreviousClick()"
+      >
+        {{ previousLabel() }}
+      </button>
+
+      <span class="workspace-section__pagination-label">{{ pageLabel() }}</span>
+
+      <button
+        class="workspace-section__pagination-button"
+        type="button"
+        [disabled]="nextDisabled()"
+        (click)="handleNextClick()"
+      >
+        {{ nextLabel() }}
+      </button>
+    </div>
+  }
+</section>
