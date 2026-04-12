@@ -27,7 +27,7 @@
     <section class="app-panel question-editor-empty">
       <p class="app-copy">Loading question workspace...</p>
     </section>
-  } @else {
+  } @else if (course() && canManageCourse()) {
     <section class="app-panel question-editor-grid" [class.question-editor-grid--single]="!isEditing">
       <article class="question-editor-card">
         <div class="question-editor-card__header">
@@ -202,6 +202,16 @@
           }
         </article>
       }
+    </section>
+  } @else if (course()) {
+    <section class="app-panel question-editor-empty">
+      <p class="question-editor-empty__title">Question editing unavailable.</p>
+      <p class="app-copy">Only the owner of this course can create or edit questions. You can still browse the question bank and play quizzes.</p>
+    </section>
+  } @else {
+    <section class="app-panel question-editor-empty">
+      <p class="question-editor-empty__title">Question workspace unavailable.</p>
+      <p class="app-copy">We could not load this question editor right now.</p>
     </section>
   }
 </main>

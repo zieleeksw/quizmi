@@ -110,6 +110,78 @@ class QuizIntegrationTest : IntegrationTest() {
             .andExpect(jsonPath("$.correctAnswers").value(0))
     }
 
+    @Test
+    fun `should allow non owner to browse quiz and review own statistics`() {
+        val owner = registerAndLogin("quiz.shared.owner@quizmi.app")
+        val viewer = registerAndLogin("quiz.shared.viewer@quizmi.app")
+        val courseId = createCourseAndReadId(owner.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, owner.accessToken, "Authentication")
+        val questionResponse = createQuestionAndReadResponse(courseId, owner.accessToken, categoryId)
+        val questionId = questionResponse["id"].asLong()
+        val correctAnswerIds = questionResponse["answers"]
+            .filter { it["correct"].asBoolean() }
+            .map { it["id"].asLong() }
+        val quizId = createQuizAndReadId(courseId, owner.accessToken, questionId)
+
+        mockMvc.perform(
+            get("/courses/{courseId}/quizzes", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].id").value(quizId))
+
+        mockMvc.perform(
+            get("/courses/{courseId}/quizzes/{quizId}", courseId, quizId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(quizId))
+            .andExpect(jsonPath("$.resolvedQuestionCount").value(1))
+
+        val attemptResponse = mockMvc.perform(
+            post("/courses/{courseId}/quizzes/{quizId}/attempts", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
+                .content(
+                    """
+                    {"answers":[{"questionId":$questionId,"answerIds":[${correctAnswerIds.joinToString(",")}]}]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.correctAnswers").value(1))
+            .andReturn()
+            .response
+            .contentAsString
+
+        val attemptId = objectMapper.readTree(attemptResponse)["id"].asLong()
+
+        mockMvc.perform(
+            get("/courses/{courseId}/attempts", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].id").value(attemptId))
+
+        mockMvc.perform(
+            get("/courses/{courseId}/attempts/reviews", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].quizId").value(quizId))
+
+        mockMvc.perform(
+            get("/courses/{courseId}/attempts/{attemptId}", courseId, attemptId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(attemptId))
+            .andExpect(jsonPath("$.questions[0].answeredCorrectly").value(true))
+    }
+
     private fun registerAndLogin(email: String): AuthIdentity {
         val password = "password12345678"
 

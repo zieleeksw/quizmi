@@ -4,7 +4,6 @@ import { Component, DestroyRef, computed, effect, inject, signal } from '@angula
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
-import { AuthService } from '../../core/auth/auth.service';
 import { CourseDto } from '../../core/courses/course.models';
 import { CourseService } from '../../core/courses/course.service';
 import { extractApiMessage } from '../../shared/api/api-error.utils';
@@ -23,7 +22,6 @@ export class CoursesPageComponent {
   private static readonly PAGE_SIZE = 10;
 
   private readonly destroyRef = inject(DestroyRef);
-  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private toastId = 0;
@@ -33,7 +31,6 @@ export class CoursesPageComponent {
   readonly errorToasts = signal<ToastItem[]>([]);
   readonly searchTerm = signal('');
   readonly currentPage = signal(1);
-  readonly ownerEmail = computed(() => this.authService.user()?.email ?? 'Unknown owner');
   readonly filteredCourses = computed(() => {
     const query = this.searchTerm().trim().toLowerCase();
 
@@ -45,7 +42,7 @@ export class CoursesPageComponent {
       return (
         course.name.toLowerCase().includes(query) ||
         course.description.toLowerCase().includes(query) ||
-        this.ownerEmail().toLowerCase().includes(query)
+        course.ownerEmail.toLowerCase().includes(query)
       );
     });
   });

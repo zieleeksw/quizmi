@@ -15,21 +15,25 @@
 
     <div class="course-quizzes-hero__copy">
       <h1 class="app-title">{{ course()?.name ?? 'Quiz library' }}</h1>
-      <p class="app-copy">Build fixed, random, or category-driven quizzes and keep attempts in one course workspace.</p>
+      <p class="app-copy">
+        {{ canManageCourse()
+          ? 'Build fixed, random, or category-driven quizzes and keep attempts in one course workspace.'
+          : 'Browse available quizzes, continue sessions, and jump into your own play history inside this course.' }}
+      </p>
     </div>
   </section>
 
   <section class="app-panel course-quizzes-panel">
     <div class="course-quizzes-panel__header">
       <div>
-        <p class="app-eyebrow">Your Quizzes</p>
+        <p class="app-eyebrow">{{ canManageCourse() ? 'Your Quizzes' : 'Course Quizzes' }}</p>
         <h2>Course quiz library</h2>
       </div>
 
-      @if (canCreateQuiz()) {
+      @if (canManageCourse() && canCreateQuiz()) {
       <button class="course-quizzes-link course-quizzes-link--primary" type="button"
         (click)="createQuiz()">Create</button>
-      } @else {
+      } @else if (canManageCourse()) {
       <div class="course-quizzes-disabled-cta" [attr.title]="createQuizHint">
         <button class="course-quizzes-link course-quizzes-link--primary course-quizzes-link--disabled" type="button"
           disabled>
@@ -50,7 +54,11 @@
     } @else if (!visibleQuizzes().length) {
     <div class="course-quizzes-empty">
       <p class="course-quizzes-empty__title">No quizzes here yet.</p>
-      <p class="app-copy">Create the first quiz after you have at least one question in this course.</p>
+      <p class="app-copy">
+        {{ canManageCourse()
+          ? 'Create the first quiz after you have at least one question in this course.'
+          : 'This course does not have any playable quizzes yet.' }}
+      </p>
     </div>
     } @else {
     <div class="course-quizzes-list">

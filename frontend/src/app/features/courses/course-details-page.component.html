@@ -9,9 +9,11 @@
       @if (course(); as currentCourse) {
         <div class="course-details-hero__actions">
           <a class="course-details-link" [routerLink]="['/courses']">Back to Courses</a>
-          <a class="course-details-link course-details-link--primary" [routerLink]="['/courses', currentCourse.id, 'edit']">
-            Edit Details
-          </a>
+          @if (canManageCourse()) {
+            <a class="course-details-link course-details-link--primary" [routerLink]="['/courses', currentCourse.id, 'edit']">
+              Edit Details
+            </a>
+          }
         </div>
       } @else {
         <a class="course-details-link" [routerLink]="['/courses']">Back to Courses</a>
@@ -25,6 +27,7 @@
     @if (course()) {
       <div class="course-details-hero__summary">
         <p class="course-details-hero__description">{{ course()!.description }}</p>
+        <p class="course-details-hero__owner">Owner {{ course()!.ownerEmail }}</p>
         <p class="course-details-hero__created">Created {{ course()!.createdAt | date: 'mediumDate' }}</p>
       </div>
     }
@@ -40,12 +43,16 @@
         <div class="course-details-overview__copy">
           <p class="app-eyebrow">Next Layer</p>
           <h2>Categories</h2>
-          <p class="app-copy">Start shaping the structure of this course before you move into questions and quizzes.</p>
+          <p class="app-copy">
+            {{ canManageCourse()
+              ? 'Start shaping the structure of this course before you move into questions and quizzes.'
+              : 'Browse the taxonomy used inside this course and understand how the material is organized.' }}
+          </p>
         </div>
 
         <div class="course-details-overview__actions">
           <a class="course-details-link course-details-link--primary" [routerLink]="['/courses', course()!.id, 'categories']">
-            Manage Categories
+            {{ canManageCourse() ? 'Manage Categories' : 'Browse Categories' }}
           </a>
         </div>
       </section>
@@ -54,12 +61,16 @@
         <div class="course-details-overview__copy">
           <p class="app-eyebrow">Question Bank</p>
           <h2>Questions</h2>
-          <p class="app-copy">Browse the bank, filter by taxonomy, and open focused editing when a question needs a new version.</p>
+          <p class="app-copy">
+            {{ canManageCourse()
+              ? 'Browse the bank, filter by taxonomy, and open focused editing when a question needs a new version.'
+              : 'Browse the question bank in read-only mode to understand what this course covers before starting a quiz.' }}
+          </p>
         </div>
 
         <div class="course-details-overview__actions">
           <a class="course-details-link course-details-link--primary" [routerLink]="['/courses', course()!.id, 'questions']">
-            Manage Questions
+            {{ canManageCourse() ? 'Manage Questions' : 'Browse Questions' }}
           </a>
         </div>
       </section>
@@ -68,12 +79,16 @@
         <div class="course-details-overview__copy">
           <p class="app-eyebrow">Quiz Layer</p>
           <h2>Quizzes</h2>
-          <p class="app-copy">Bundle questions into fixed, random, or category-based quiz runs and review exact-match results after each attempt.</p>
+          <p class="app-copy">
+            {{ canManageCourse()
+              ? 'Bundle questions into fixed, random, or category-based quiz runs and review exact-match results after each attempt.'
+              : 'Open the quiz library, play available quizzes, and review only your own attempt history and statistics.' }}
+          </p>
         </div>
 
         <div class="course-details-overview__actions">
           <a class="course-details-link course-details-link--primary" [routerLink]="['/courses', course()!.id, 'quizzes']">
-            Manage Quizzes
+            {{ canManageCourse() ? 'Manage Quizzes' : 'Open Quizzes' }}
           </a>
         </div>
       </section>

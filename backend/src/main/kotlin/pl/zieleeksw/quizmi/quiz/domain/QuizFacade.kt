@@ -60,7 +60,7 @@ class QuizFacade(
         courseId: Long,
         actorUserId: Long
     ): List<QuizDto> {
-        assertCourseOwnership(courseId, actorUserId)
+        assertCourseVisibility(courseId)
         val questions = questionFacade.fetchQuestions(courseId, actorUserId)
 
         return quizRepository.findAllByCourseIdAndActiveTrueOrderByCreatedAtDesc(courseId)
@@ -73,7 +73,7 @@ class QuizFacade(
         quizId: Long,
         actorUserId: Long
     ): QuizDto {
-        assertCourseOwnership(courseId, actorUserId)
+        assertCourseVisibility(courseId)
         val questions = questionFacade.fetchQuestions(courseId, actorUserId)
         return toCurrentQuizDto(findActiveQuizInCourseOrThrow(quizId, courseId), questions)
     }
@@ -409,6 +409,10 @@ class QuizFacade(
 
     private fun assertCourseOwnership(courseId: Long, actorUserId: Long) {
         courseFacade.fetchCourseForOwner(courseId, actorUserId)
+    }
+
+    private fun assertCourseVisibility(courseId: Long) {
+        courseFacade.fetchCourseById(courseId)
     }
 
     private data class QuizDraft(

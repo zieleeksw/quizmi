@@ -24,7 +24,7 @@
     <section class="app-panel course-edit-empty">
       <p class="app-copy">Loading course details...</p>
     </section>
-  } @else if (course()) {
+  } @else if (course() && canEditCourse()) {
     <section class="app-panel course-edit-form-card">
       <form class="app-form course-edit-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
         <div class="app-field">
@@ -67,6 +67,11 @@
           />
         </div>
       </form>
+    </section>
+  } @else if (course()) {
+    <section class="app-panel course-edit-empty">
+      <p class="course-edit-empty__title">Editing unavailable.</p>
+      <p class="app-copy">Only the owner of this course can edit its details.</p>
     </section>
   } @else {
     <section class="app-panel course-edit-empty">

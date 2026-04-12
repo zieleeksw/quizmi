@@ -4,11 +4,11 @@
 
   <section class="courses-hero app-panel">
     <div class="courses-hero__copy">
-      <p class="app-eyebrow">Course Studio</p>
-      <h1 class="app-title">Build your course library.</h1>
+      <p class="app-eyebrow">Course Catalog</p>
+      <h1 class="app-title">Browse the shared course library.</h1>
       <p class="app-copy">
-        Browse the courses you already own, keep the workspace tidy, and jump into creation only when you are ready to
-        add a new learning track.
+        Explore courses created across the workspace, search by title or owner, and jump into your own course creation
+        flow whenever you want to add a new learning track.
       </p>
     </div>
   </section>
@@ -16,8 +16,8 @@
   <article class="app-panel courses-catalog">
     <div class="courses-catalog__header">
       <div class="courses-catalog__copy">
-        <p class="app-eyebrow">Your Courses</p>
-        <h2>Your course library</h2>
+        <p class="app-eyebrow">All Courses</p>
+        <h2>Workspace course preview</h2>
       </div>
 
       <app-action-button label="Create Course" [routerLink]="['/courses/create']" />
@@ -39,7 +39,7 @@
     } @else if (!courses().length) {
       <div class="courses-empty">
         <p class="courses-empty__title">No courses yet.</p>
-        <p class="app-copy">Create your first course and we will use it as the base for upcoming category and question modules.</p>
+        <p class="app-copy">Create the first course in the workspace and it will appear here for every logged-in user.</p>
       </div>
     } @else if (!filteredCourses().length) {
       <div class="courses-empty">
@@ -55,7 +55,7 @@
               <p class="course-card__description">{{ course.description }}</p>
             </div>
             <div class="course-card__footer">
-              <span class="course-card__meta">Owner: {{ ownerEmail() }}</span>
+              <span class="course-card__meta">Owner: {{ course.ownerEmail }}</span>
               <span class="course-card__meta">{{ course.createdAt | date: 'medium' }}</span>
             </div>
           </a>

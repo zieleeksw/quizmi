@@ -33,10 +33,11 @@ class CourseIntegrationTest : IntegrationTest() {
             .andExpect(jsonPath("$.name").value("Spring Security Associate"))
             .andExpect(jsonPath("$.description").value("A focused course for filters, JWTs, and authorization workflows."))
             .andExpect(jsonPath("$.ownerUserId").value(authentication.userId))
+            .andExpect(jsonPath("$.ownerEmail").value("course.owner@quizmi.app"))
     }
 
     @Test
-    fun `should fetch only courses owned by authenticated user`() {
+    fun `should fetch all visible courses for authenticated user`() {
         val firstUser = registerAndLogin(email = "first.owner@quizmi.app")
         val secondUser = registerAndLogin(email = "second.owner@quizmi.app")
 
@@ -49,14 +50,21 @@ class CourseIntegrationTest : IntegrationTest() {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer ${firstUser.accessToken}")
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$.length()").value(3))
+            .andExpect(jsonPath("$[0].name").value("Spring Security Associate"))
+            .andExpect(jsonPath("$[0].ownerEmail").value("first.owner@quizmi.app"))
+            .andExpect(jsonPath("$[1].name").value("Docker Basics"))
+            .andExpect(jsonPath("$[1].ownerEmail").value("second.owner@quizmi.app"))
+            .andExpect(jsonPath("$[2].name").value("Spring Boot Associate"))
             .andExpect(jsonPath("$[0].ownerUserId").value(firstUser.userId))
-            .andExpect(jsonPath("$[1].ownerUserId").value(firstUser.userId))
+            .andExpect(jsonPath("$[1].ownerUserId").value(secondUser.userId))
+            .andExpect(jsonPath("$[2].ownerUserId").value(firstUser.userId))
     }
 
     @Test
-    fun `should fetch course details for owner`() {
+    fun `should fetch course details for any authenticated user`() {
         val authentication = registerAndLogin(email = "details.owner@quizmi.app")
+        val outsider = registerAndLogin(email = "details.viewer@quizmi.app")
         val courseId = createCourseAndReadId(
             accessToken = authentication.accessToken,
             name = "Spring Security Associate",
@@ -65,13 +73,14 @@ class CourseIntegrationTest : IntegrationTest() {
 
         mockMvc.perform(
             get("/courses/{courseId}", courseId)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${outsider.accessToken}")
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.id").value(courseId))
             .andExpect(jsonPath("$.name").value("Spring Security Associate"))
             .andExpect(jsonPath("$.description").value("A focused course for filters, JWTs, and authorization workflows."))
             .andExpect(jsonPath("$.ownerUserId").value(authentication.userId))
+            .andExpect(jsonPath("$.ownerEmail").value("details.owner@quizmi.app"))
     }
 
     @Test
@@ -98,7 +107,7 @@ class CourseIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    fun `should forbid fetching course details for different owner`() {
+    fun `should forbid updating course details for different owner`() {
         val owner = registerAndLogin(email = "private.owner@quizmi.app")
         val outsider = registerAndLogin(email = "outsider.owner@quizmi.app")
         val courseId = createCourseAndReadId(
@@ -108,8 +117,12 @@ class CourseIntegrationTest : IntegrationTest() {
         )
 
         mockMvc.perform(
-            get("/courses/{courseId}", courseId)
+            put("/courses/{courseId}", courseId)
+                .contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer ${outsider.accessToken}")
+                .content(
+                    """{"name":"Spring Security Mastery","description":"An updated course for advanced filters, JWTs, and authorization design."}"""
+                )
         )
             .andExpect(status().isForbidden)
     }

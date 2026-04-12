@@ -4,6 +4,7 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import { AuthService } from '../../core/auth/auth.service';
 import { CourseDto } from '../../core/courses/course.models';
 import { CourseService } from '../../core/courses/course.service';
 import { extractApiMessage } from '../../shared/api/api-error.utils';
@@ -20,6 +21,7 @@ import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/works
 export class CourseDetailsPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
+  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private toastId = 0;
@@ -29,6 +31,12 @@ export class CourseDetailsPageComponent {
   readonly isLoading = signal(true);
   readonly errorToasts = signal<ToastItem[]>([]);
   readonly pageTitle = computed(() => this.course()?.name ?? 'Course details');
+  readonly canManageCourse = computed(() => {
+    const currentCourse = this.course();
+    const currentUserId = this.authService.user()?.id;
+
+    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
+  });
 
   constructor() {
     this.destroyRef.onDestroy(() => {

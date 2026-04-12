@@ -2,10 +2,11 @@ import { forkJoin } from 'rxjs';
 import { finalize } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
-import { Component, DestroyRef, HostListener, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import { AuthService } from '../../core/auth/auth.service';
 import { CategoryDto, CategoryVersionDto } from '../../core/categories/category.models';
 import { CategoryService } from '../../core/categories/category.service';
 import { CourseDto } from '../../core/courses/course.models';
@@ -28,6 +29,7 @@ export class CategoryEditPageComponent implements PendingChangesAware {
   private readonly formBuilder = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
+  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly categoryService = inject(CategoryService);
   private readonly pendingChangesDialog = inject(PendingChangesDialogService);
@@ -44,6 +46,12 @@ export class CategoryEditPageComponent implements PendingChangesAware {
   readonly hasSubmitted = signal(false);
   readonly serverFieldErrors = signal<Record<string, string>>({});
   readonly toasts = signal<ToastItem[]>([]);
+  readonly canManageCourse = computed(() => {
+    const currentCourse = this.course();
+    const currentUserId = this.authService.user()?.id;
+
+    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
+  });
 
   readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]]
@@ -67,7 +75,7 @@ export class CategoryEditPageComponent implements PendingChangesAware {
   submit(): void {
     this.hasSubmitted.set(true);
 
-    if (this.form.invalid || !Number.isFinite(this.courseId) || !Number.isFinite(this.categoryId)) {
+    if (this.form.invalid || !Number.isFinite(this.courseId) || !Number.isFinite(this.categoryId) || !this.canManageCourse()) {
       return;
     }
 
@@ -196,23 +204,38 @@ export class CategoryEditPageComponent implements PendingChangesAware {
 
     this.isLoading.set(true);
 
-    forkJoin({
-      course: this.courseService.fetchCourse(this.courseId),
-      category: this.categoryService.fetchCategory(this.courseId, this.categoryId),
-      versions: this.categoryService.fetchCategoryVersions(this.courseId, this.categoryId)
-    })
+    this.courseService.fetchCourse(this.courseId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ course, category, versions }) => {
+        next: (course) => {
           this.course.set(course);
-          this.category.set(category);
-          this.versions.set(versions);
-          this.form.reset({ name: category.name }, { emitEvent: false });
-          this.isLoading.set(false);
+
+          if (!this.canManageCourse()) {
+            this.isLoading.set(false);
+            return;
+          }
+
+          forkJoin({
+            category: this.categoryService.fetchCategory(this.courseId, this.categoryId),
+            versions: this.categoryService.fetchCategoryVersions(this.courseId, this.categoryId)
+          })
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+              next: ({ category, versions }) => {
+                this.category.set(category);
+                this.versions.set(versions);
+                this.form.reset({ name: category.name }, { emitEvent: false });
+                this.isLoading.set(false);
+              },
+              error: (error) => {
+                this.isLoading.set(false);
+                this.pushToast(extractApiMessage(error) ?? 'Unable to load this category right now.', 'error');
+              }
+            });
         },
         error: (error) => {
           this.isLoading.set(false);
-          this.pushToast(extractApiMessage(error) ?? 'Unable to load this category right now.', 'error');
+          this.pushToast(extractApiMessage(error) ?? 'Unable to load this course right now.', 'error');
         }
       });
   }

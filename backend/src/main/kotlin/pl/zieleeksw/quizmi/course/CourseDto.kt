@@ -7,5 +7,6 @@ data class CourseDto(
     val name: String,
     val description: String,
     val createdAt: Instant,
-    val ownerUserId: Long
+    val ownerUserId: Long,
+    val ownerEmail: String
 )

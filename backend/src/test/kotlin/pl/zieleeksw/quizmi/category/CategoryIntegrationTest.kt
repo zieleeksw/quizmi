@@ -35,16 +35,17 @@ class CategoryIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    fun `should fetch course categories for owner`() {
-        val authentication = registerAndLogin(email = "category.list.owner@quizmi.app")
-        val courseId = createCourseAndReadId(authentication.accessToken)
+    fun `should fetch course categories for any authenticated user`() {
+        val owner = registerAndLogin(email = "category.list.owner@quizmi.app")
+        val viewer = registerAndLogin(email = "category.list.viewer@quizmi.app")
+        val courseId = createCourseAndReadId(owner.accessToken)
 
-        createCategory(courseId, authentication.accessToken, "Authentication")
-        createCategory(courseId, authentication.accessToken, "Spring Security")
+        createCategory(courseId, owner.accessToken, "Authentication")
+        createCategory(courseId, owner.accessToken, "Spring Security")
 
         mockMvc.perform(
             get("/courses/{courseId}/categories", courseId)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.length()").value(2))
@@ -97,14 +98,17 @@ class CategoryIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    fun `should forbid category access for different owner`() {
+    fun `should forbid category update for different owner`() {
         val owner = registerAndLogin(email = "category.private.owner@quizmi.app")
         val outsider = registerAndLogin(email = "category.outsider@quizmi.app")
         val courseId = createCourseAndReadId(owner.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, owner.accessToken, "Authentication")
 
         mockMvc.perform(
-            get("/courses/{courseId}/categories", courseId)
+            put("/courses/{courseId}/categories/{categoryId}", courseId, categoryId)
+                .contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer ${outsider.accessToken}")
+                .content("""{"name":"Authentication Flows"}""")
         )
             .andExpect(status().isForbidden)
     }

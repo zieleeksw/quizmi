@@ -23,21 +23,15 @@ class CourseController(
 ) {
 
     @GetMapping
-    fun fetchAll(authentication: Authentication): List<CourseDto> {
-        val currentUser = currentUser(authentication)
-        return courseFacade.fetchCoursesForOwner(currentUser.id)
+    fun fetchAll(): List<CourseDto> {
+        return courseFacade.fetchVisibleCourses()
     }
 
     @GetMapping("/{courseId}")
     fun fetchById(
-        authentication: Authentication,
         @PathVariable courseId: Long
     ): CourseDto {
-        val currentUser = currentUser(authentication)
-        return courseFacade.fetchCourseForOwner(
-            id = courseId,
-            actorUserId = currentUser.id
-        )
+        return courseFacade.fetchCourseById(courseId)
     }
 
     @PostMapping

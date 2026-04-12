@@ -137,6 +137,17 @@
   box-shadow: 0 26px 48px -34px rgba(28, 40, 61, 0.42);
 }
 
+.course-category-card--static {
+  cursor: default;
+}
+
+.course-category-card--static:hover,
+.course-category-card--static:focus-within {
+  transform: none;
+  border-color: rgba(49, 65, 95, 0.1);
+  box-shadow: 0 20px 40px -34px rgba(28, 40, 61, 0.36);
+}
+
 .course-category-card__footer {
   display: flex;
   justify-content: space-between;

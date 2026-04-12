@@ -4,6 +4,7 @@ import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import { AuthService } from '../../core/auth/auth.service';
 import { CategoryDto } from '../../core/categories/category.models';
 import { CategoryService } from '../../core/categories/category.service';
 import { CourseDto } from '../../core/courses/course.models';
@@ -24,6 +25,7 @@ import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/works
 export class CourseQuestionsPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
+  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly categoryService = inject(CategoryService);
   private readonly questionService = inject(QuestionService);
@@ -40,6 +42,12 @@ export class CourseQuestionsPageComponent {
   readonly selectedCategoryId = signal<number | 'all'>('all');
   readonly requestedPage = signal(0);
   readonly errorToasts = signal<ToastItem[]>([]);
+  readonly canManageCourse = computed(() => {
+    const currentCourse = this.course();
+    const currentUserId = this.authService.user()?.id;
+
+    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
+  });
   readonly hasCategories = computed(() => this.categories().length > 0);
   readonly createQuestionHint = 'Add at least one category before creating questions.';
   readonly previewQuestions = computed(() => this.preview()?.items ?? []);
@@ -114,6 +122,14 @@ export class CourseQuestionsPageComponent {
 
   isQuestionUpdated(question: QuestionDto): boolean {
     return question.currentVersionNumber > 1;
+  }
+
+  questionEditorLink(question: QuestionDto): string[] | null {
+    if (!this.canManageCourse()) {
+      return null;
+    }
+
+    return ['/courses', String(question.courseId), 'questions', String(question.id), 'edit'];
   }
 
   private loadPage(): void {

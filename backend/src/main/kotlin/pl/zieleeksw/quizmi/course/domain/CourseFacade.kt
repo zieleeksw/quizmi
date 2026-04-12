@@ -4,11 +4,14 @@ import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import pl.zieleeksw.quizmi.course.CourseDto
+import pl.zieleeksw.quizmi.user.domain.UserEntity
+import pl.zieleeksw.quizmi.user.domain.UserRepository
 import java.time.Instant
 
 @Service
 class CourseFacade(
     private val courseRepository: CourseRepository,
+    private val userRepository: UserRepository,
     private val courseNameValidator: CourseNameValidator,
     private val courseDescriptionValidator: CourseDescriptionValidator
 ) {
@@ -34,13 +37,33 @@ class CourseFacade(
             )
         )
 
-        return savedCourse.toDto()
+        return savedCourse.toDto(
+            ownerEmail = readOwnerEmail(savedCourse.ownerUserId!!)
+        )
     }
 
     @Transactional(readOnly = true)
-    fun fetchCoursesForOwner(ownerUserId: Long): List<CourseDto> {
-        return courseRepository.findAllByOwnerUserIdOrderByCreatedAtDesc(ownerUserId)
-            .map { it.toDto() }
+    fun fetchVisibleCourses(): List<CourseDto> {
+        val courses = courseRepository.findAllByOrderByCreatedAtDesc()
+        val ownersById = userRepository.findAllById(courses.mapNotNull { it.ownerUserId }.distinct())
+            .associateBy { it.id!! }
+
+        return courses.map { course ->
+            val ownerEmail = ownersById[course.ownerUserId!!]?.email
+                ?: throw IllegalStateException("Owner with id ${course.ownerUserId} was not found for course ${course.id}.")
+
+            course.toDto(ownerEmail)
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun fetchCourseById(id: Long): CourseDto {
+        val entity = courseRepository.findById(id)
+            .orElseThrow { CourseNotFoundException.forId(id) }
+
+        return entity.toDto(
+            ownerEmail = readOwnerEmail(entity.ownerUserId!!)
+        )
     }
 
     @Transactional(readOnly = true)
@@ -52,7 +75,10 @@ class CourseFacade(
             .orElseThrow { CourseNotFoundException.forId(id) }
 
         assertCanManageCourse(entity, actorUserId)
-        return entity.toDto()
+
+        return entity.toDto(
+            ownerEmail = readOwnerEmail(entity.ownerUserId!!)
+        )
     }
 
     @Transactional
@@ -76,7 +102,9 @@ class CourseFacade(
         entity.name = normalizedName
         entity.description = normalizedDescription
 
-        return courseRepository.save(entity).toDto()
+        return courseRepository.save(entity).toDto(
+            ownerEmail = readOwnerEmail(entity.ownerUserId!!)
+        )
     }
 
     private fun assertCanManageCourse(
@@ -90,13 +118,20 @@ class CourseFacade(
         throw AccessDeniedException("You cannot manage this course.")
     }
 
-    private fun CourseEntity.toDto(): CourseDto {
+    private fun readOwnerEmail(ownerUserId: Long): String {
+        return userRepository.findById(ownerUserId)
+            .map(UserEntity::email)
+            .orElseThrow { IllegalStateException("Owner with id $ownerUserId was not found.") }
+    }
+
+    private fun CourseEntity.toDto(ownerEmail: String): CourseDto {
         return CourseDto(
             id = id!!,
             name = name,
             description = description,
             createdAt = createdAt,
-            ownerUserId = ownerUserId!!
+            ownerUserId = ownerUserId!!,
+            ownerEmail = ownerEmail
         )
     }
 }

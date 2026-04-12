@@ -63,9 +63,11 @@
           (click)="startQuiz()">
           {{ hasSession() ? 'Continue' : 'Play' }}
         </button>
-        <a class="quiz-overview-link" [routerLink]="['/courses', courseId, 'quizzes', quizId, 'statistics']">Advanced
+        <a class="quiz-overview-link" [routerLink]="['/courses', courseId, 'quizzes', quizId, 'statistics']">Your
           statistics</a>
-        <a class="quiz-overview-link" [routerLink]="['/courses', courseId, 'quizzes', quizId, 'edit']">Edit</a>
+        @if (canManageCourse()) {
+          <a class="quiz-overview-link" [routerLink]="['/courses', courseId, 'quizzes', quizId, 'edit']">Edit</a>
+        }
       </div>
     </div>
 
@@ -82,7 +84,7 @@
     <div class="quiz-overview-panel__header">
       <div>
         <p class="app-eyebrow">Attempts</p>
-        <h2>Recent results</h2>
+        <h2>Your recent results</h2>
       </div>
     </div>
 

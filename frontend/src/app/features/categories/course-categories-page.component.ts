@@ -4,6 +4,7 @@ import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import { AuthService } from '../../core/auth/auth.service';
 import { CategoryDto } from '../../core/categories/category.models';
 import { CategoryService } from '../../core/categories/category.service';
 import { CourseDto } from '../../core/courses/course.models';
@@ -22,6 +23,7 @@ import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/works
 export class CourseCategoriesPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
+  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly categoryService = inject(CategoryService);
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
@@ -33,6 +35,12 @@ export class CourseCategoriesPageComponent {
   readonly isLoading = signal(true);
   readonly searchTerm = signal('');
   readonly errorToasts = signal<ToastItem[]>([]);
+  readonly canManageCourse = computed(() => {
+    const currentCourse = this.course();
+    const currentUserId = this.authService.user()?.id;
+
+    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
+  });
   readonly filteredCategories = computed(() => {
     const query = this.searchTerm().trim().toLowerCase();
 
@@ -74,6 +82,14 @@ export class CourseCategoriesPageComponent {
 
   isCategoryUpdated(category: CategoryDto): boolean {
     return category.updatedAt !== category.createdAt;
+  }
+
+  categoryCardLink(category: CategoryDto): string[] | null {
+    if (!this.canManageCourse()) {
+      return null;
+    }
+
+    return ['/courses', String(category.courseId), 'categories', String(category.id), 'edit'];
   }
 
   private loadPage(): void {

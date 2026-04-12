@@ -41,25 +41,26 @@ class QuestionIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    fun `should fetch questions and preview for owner`() {
-        val authentication = registerAndLogin("question.list@quizmi.app")
-        val courseId = createCourseAndReadId(authentication.accessToken)
-        val authCategoryId = createCategoryAndReadId(courseId, authentication.accessToken, "Authentication")
-        val jwtCategoryId = createCategoryAndReadId(courseId, authentication.accessToken, "JWT")
+    fun `should fetch questions and preview for any authenticated user`() {
+        val owner = registerAndLogin("question.list@quizmi.app")
+        val viewer = registerAndLogin("question.viewer@quizmi.app")
+        val courseId = createCourseAndReadId(owner.accessToken)
+        val authCategoryId = createCategoryAndReadId(courseId, owner.accessToken, "Authentication")
+        val jwtCategoryId = createCategoryAndReadId(courseId, owner.accessToken, "JWT")
 
-        createQuestion(courseId, authentication.accessToken, authCategoryId, "Which token should stay on the client for refresh requests?")
-        createQuestion(courseId, authentication.accessToken, jwtCategoryId, "Which claim usually carries the subject identifier?")
+        createQuestion(courseId, owner.accessToken, authCategoryId, "Which token should stay on the client for refresh requests?")
+        createQuestion(courseId, owner.accessToken, jwtCategoryId, "Which claim usually carries the subject identifier?")
 
         mockMvc.perform(
             get("/courses/{courseId}/questions", courseId)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.length()").value(2))
 
         mockMvc.perform(
             get("/courses/{courseId}/questions/preview", courseId)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
                 .param("search", "subject")
                 .param("categoryId", jwtCategoryId.toString())
         )
@@ -112,14 +113,27 @@ class QuestionIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    fun `should forbid question access for different owner`() {
+    fun `should forbid question update for different owner`() {
         val owner = registerAndLogin("question.private.owner@quizmi.app")
         val outsider = registerAndLogin("question.outsider@quizmi.app")
         val courseId = createCourseAndReadId(owner.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, owner.accessToken, "Authentication")
+        val questionId = createQuestionAndReadId(
+            courseId,
+            owner.accessToken,
+            categoryId,
+            "Which flow returns a fresh access token to the browser?"
+        )
 
         mockMvc.perform(
-            get("/courses/{courseId}/questions", courseId)
+            put("/courses/{courseId}/questions/{questionId}", courseId, questionId)
+                .contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer ${outsider.accessToken}")
+                .content(
+                    """
+                    {"prompt":"Which backend flow returns a fresh access token to the browser?","answers":[{"content":"Refresh token flow","correct":true},{"content":"CORS preflight","correct":false}],"categoryIds":[$categoryId]}
+                    """.trimIndent()
+                )
         )
             .andExpect(status().isForbidden)
     }

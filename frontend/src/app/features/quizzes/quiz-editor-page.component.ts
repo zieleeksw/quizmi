@@ -1,10 +1,11 @@
 import { finalize, forkJoin, of } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
-import { Component, DestroyRef, HostListener, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { AuthService } from '../../core/auth/auth.service';
 import { CategoryDto } from '../../core/categories/category.models';
 import { CategoryService } from '../../core/categories/category.service';
 import { PendingChangesDialogService } from '../../core/navigation/pending-changes-dialog.service';
@@ -42,6 +43,7 @@ export class QuizEditorPageComponent implements PendingChangesAware {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly categoryService = inject(CategoryService);
   private readonly questionService = inject(QuestionService);
@@ -69,6 +71,12 @@ export class QuizEditorPageComponent implements PendingChangesAware {
   readonly isLoading = signal(true);
   readonly isSubmitting = signal(false);
   readonly toasts = signal<ToastItem[]>([]);
+  readonly canManageCourse = computed(() => {
+    const currentCourse = this.course();
+    const currentUserId = this.authService.user()?.id;
+
+    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
+  });
 
   readonly quizModes: QuizMode[] = ['manual', 'random', 'category'];
   readonly orderModes: QuizOrderMode[] = ['fixed', 'random'];
@@ -241,6 +249,11 @@ export class QuizEditorPageComponent implements PendingChangesAware {
   }
 
   saveQuiz(): void {
+    if (!this.canManageCourse()) {
+      this.pushToast('Editing unavailable', 'Only the owner of this course can create or edit quizzes.', 'error');
+      return;
+    }
+
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.pushToast('Cannot save quiz', 'Complete the title and ordering fields first.', 'error');
@@ -326,31 +339,46 @@ export class QuizEditorPageComponent implements PendingChangesAware {
       return;
     }
 
-    forkJoin({
-      course: this.courseService.fetchCourse(this.courseId),
-      categories: this.categoryService.fetchCategories(this.courseId),
-      questions: this.questionService.fetchQuestions(this.courseId),
-      quiz: this.isEditing ? this.quizService.fetchQuiz(this.courseId, this.quizId) : of(null),
-      versions: this.isEditing ? this.quizService.fetchQuizVersions(this.courseId, this.quizId) : of([])
-    })
+    this.courseService.fetchCourse(this.courseId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ course, categories, questions, quiz, versions }) => {
+        next: (course) => {
           this.course.set(course);
-          this.categories.set(categories);
-          this.questions.set(questions);
-          this.quiz.set(quiz);
-          this.versions.set(versions);
 
-          if (quiz) {
-            this.applyQuizToForm(quiz);
+          if (!this.canManageCourse()) {
+            this.isLoading.set(false);
+            return;
           }
 
-          this.isLoading.set(false);
+          forkJoin({
+            categories: this.categoryService.fetchCategories(this.courseId),
+            questions: this.questionService.fetchQuestions(this.courseId),
+            quiz: this.isEditing ? this.quizService.fetchQuiz(this.courseId, this.quizId) : of(null),
+            versions: this.isEditing ? this.quizService.fetchQuizVersions(this.courseId, this.quizId) : of([])
+          })
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+              next: ({ categories, questions, quiz, versions }) => {
+                this.categories.set(categories);
+                this.questions.set(questions);
+                this.quiz.set(quiz);
+                this.versions.set(versions);
+
+                if (quiz) {
+                  this.applyQuizToForm(quiz);
+                }
+
+                this.isLoading.set(false);
+              },
+              error: (error) => {
+                this.isLoading.set(false);
+                this.pushToast('Load failed', extractApiMessage(error) ?? 'Unable to load this quiz workspace right now.', 'error');
+              }
+            });
         },
         error: (error) => {
           this.isLoading.set(false);
-          this.pushToast('Load failed', extractApiMessage(error) ?? 'Unable to load this quiz workspace right now.', 'error');
+          this.pushToast('Load failed', extractApiMessage(error) ?? 'Unable to load this course right now.', 'error');
         }
       });
   }

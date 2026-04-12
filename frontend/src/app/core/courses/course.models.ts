@@ -4,6 +4,7 @@ export interface CourseDto {
   description: string;
   createdAt: string;
   ownerUserId: number;
+  ownerEmail: string;
 }
 
 export interface CreateCourseRequest {

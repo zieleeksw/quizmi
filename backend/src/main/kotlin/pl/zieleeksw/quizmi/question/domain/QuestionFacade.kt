@@ -72,7 +72,7 @@ class QuestionFacade(
         courseId: Long,
         actorUserId: Long
     ): List<QuestionDto> {
-        assertCourseOwnership(courseId, actorUserId)
+        assertCourseVisibility(courseId)
         return questionRepository.findAllByCourseIdOrderByCreatedAtDesc(courseId)
             .map { toCurrentQuestionDto(it) }
     }
@@ -86,7 +86,7 @@ class QuestionFacade(
         search: String?,
         categoryId: Long?
     ): QuestionPageDto {
-        assertCourseOwnership(courseId, actorUserId)
+        assertCourseVisibility(courseId)
 
         val normalizedPage = page.coerceAtLeast(0)
         val normalizedSize = size.coerceIn(1, 50)
@@ -362,6 +362,10 @@ class QuestionFacade(
         actorUserId: Long
     ) {
         courseFacade.fetchCourseForOwner(id = courseId, actorUserId = actorUserId)
+    }
+
+    private fun assertCourseVisibility(courseId: Long) {
+        courseFacade.fetchCourseById(courseId)
     }
 
     private data class NormalizedQuestionAnswer(

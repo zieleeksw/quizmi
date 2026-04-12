@@ -27,7 +27,7 @@
   <section class="app-panel category-create-form-card">
     @if (isLoadingCourse()) {
       <p class="app-copy">Loading course details...</p>
-    } @else {
+    } @else if (course() && canManageCourse()) {
       <form class="app-form category-create-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
         <div class="app-field">
           <label for="category-name">Category name</label>
@@ -54,6 +54,16 @@
           />
         </div>
       </form>
+    } @else if (course()) {
+      <div class="category-create-empty">
+        <p class="category-create-empty__title">Category creation unavailable.</p>
+        <p class="app-copy">Only the owner of this course can add new categories. You can still browse the course and play its quizzes.</p>
+      </div>
+    } @else {
+      <div class="category-create-empty">
+        <p class="category-create-empty__title">Course unavailable.</p>
+        <p class="app-copy">We could not load this course right now.</p>
+      </div>
     }
   </section>
 </main>

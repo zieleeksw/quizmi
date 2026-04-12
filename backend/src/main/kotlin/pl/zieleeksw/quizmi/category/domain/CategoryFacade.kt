@@ -20,10 +20,7 @@ class CategoryFacade(
         courseId: Long,
         actorUserId: Long
     ): List<CategoryDto> {
-        courseFacade.fetchCourseForOwner(
-            id = courseId,
-            actorUserId = actorUserId
-        )
+        assertCourseVisibility(courseId)
 
         return categoryRepository.findAllByCourseIdOrderByNameAsc(courseId)
             .map { it.toDto() }
@@ -137,6 +134,10 @@ class CategoryFacade(
             id = courseId,
             actorUserId = actorUserId
         )
+    }
+
+    private fun assertCourseVisibility(courseId: Long) {
+        courseFacade.fetchCourseById(courseId)
     }
 
     private fun findCategoryInCourseOrThrow(

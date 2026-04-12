@@ -1,9 +1,10 @@
 import { finalize } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { AuthService } from '../../core/auth/auth.service';
 import { CourseDto } from '../../core/courses/course.models';
 import { CourseService } from '../../core/courses/course.service';
 import { extractApiMessage, extractFieldErrors } from '../../shared/api/api-error.utils';
@@ -23,6 +24,7 @@ export class CourseEditPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private toastId = 0;
@@ -34,6 +36,12 @@ export class CourseEditPageComponent {
   readonly hasSubmitted = signal(false);
   readonly serverFieldErrors = signal<Record<string, string>>({});
   readonly errorToasts = signal<ToastItem[]>([]);
+  readonly canEditCourse = computed(() => {
+    const currentCourse = this.course();
+    const currentUserId = this.authService.user()?.id;
+
+    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
+  });
 
   readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120)]],
@@ -58,7 +66,7 @@ export class CourseEditPageComponent {
   submit(): void {
     this.hasSubmitted.set(true);
 
-    if (this.form.invalid || !Number.isFinite(this.courseId)) {
+    if (this.form.invalid || !Number.isFinite(this.courseId) || !this.canEditCourse()) {
       return;
     }
 

@@ -6,6 +6,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AttemptService } from '../../core/attempts/attempt.service';
 import { QuizAttemptDetailDto, QuizAttemptDto, QuizSessionDto } from '../../core/attempts/attempt.models';
+import { AuthService } from '../../core/auth/auth.service';
 import { CourseDto } from '../../core/courses/course.models';
 import { CourseService } from '../../core/courses/course.service';
 import { QuizDto } from '../../core/quizzes/quiz.models';
@@ -35,6 +36,7 @@ export class QuizOverviewPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly quizService = inject(QuizService);
   private readonly attemptService = inject(AttemptService);
@@ -55,6 +57,12 @@ export class QuizOverviewPageComponent {
   readonly isLoading = signal(true);
   readonly isStartingSession = signal(false);
   readonly toasts = signal<ToastItem[]>([]);
+  readonly canManageCourse = computed(() => {
+    const currentCourse = this.course();
+    const currentUserId = this.authService.user()?.id;
+
+    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
+  });
 
   readonly quizAttempts = computed(() =>
     this.attempts()

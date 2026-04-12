@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AttemptService } from '../../core/attempts/attempt.service';
 import { QuizSessionDto } from '../../core/attempts/attempt.models';
+import { AuthService } from '../../core/auth/auth.service';
 import { CourseDto } from '../../core/courses/course.models';
 import { CourseService } from '../../core/courses/course.service';
 import { QuestionService } from '../../core/questions/question.service';
@@ -25,6 +26,7 @@ export class CourseQuizzesPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly questionService = inject(QuestionService);
   private readonly quizService = inject(QuizService);
@@ -41,6 +43,12 @@ export class CourseQuizzesPageComponent {
   readonly searchTerm = signal('');
   readonly page = signal(0);
   readonly toasts = signal<ToastItem[]>([]);
+  readonly canManageCourse = computed(() => {
+    const currentCourse = this.course();
+    const currentUserId = this.authService.user()?.id;
+
+    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
+  });
 
   readonly filteredQuizzes = computed(() => {
     const normalizedSearch = this.searchTerm().trim().toLocaleLowerCase();
@@ -67,7 +75,7 @@ export class CourseQuizzesPageComponent {
     const totalPages = this.totalPages();
     return totalPages ? `Page ${this.page() + 1} of ${totalPages}` : 'Page 0 of 0';
   });
-  readonly canCreateQuiz = computed(() => this.questionCount() > 0);
+  readonly canCreateQuiz = computed(() => this.canManageCourse() && this.questionCount() > 0);
   readonly createQuizHint = 'Add at least one question before creating quizzes.';
 
   constructor() {

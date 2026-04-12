@@ -46,6 +46,7 @@
 }
 
 .course-details-hero__description,
+.course-details-hero__owner,
 .course-details-hero__created {
   margin: 0;
 }
@@ -55,6 +56,7 @@
   line-height: 1.65;
 }
 
+.course-details-hero__owner,
 .course-details-hero__created {
   color: var(--color-ink-500);
   font-size: 0.95rem;
@@ -146,6 +148,11 @@
 }
 
 .course-details-empty {
+  padding: 1.3rem;
+}
+
+.course-details-view-only {
+  width: 100%;
   padding: 1.3rem;
 }
 

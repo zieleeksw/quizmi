@@ -28,7 +28,7 @@
   <section class="app-panel quiz-editor-empty">
     <p class="app-copy">Loading quiz editor...</p>
   </section>
-  } @else {
+  } @else if (course() && canManageCourse()) {
   <section class="app-panel quiz-editor-grid" [class.quiz-editor-grid--single]="!isEditing">
     <article class="quiz-editor-card">
       <div class="quiz-editor-card__header">
@@ -204,6 +204,16 @@
       </article>
     </aside>
     }
+  </section>
+  } @else if (course()) {
+  <section class="app-panel quiz-editor-empty">
+    <p class="quiz-editor-empty__title">Quiz editing unavailable.</p>
+    <p class="app-copy">Only the owner of this course can create or edit quizzes. You can still open quizzes, play them, and review your own results.</p>
+  </section>
+  } @else {
+  <section class="app-panel quiz-editor-empty">
+    <p class="quiz-editor-empty__title">Quiz editor unavailable.</p>
+    <p class="app-copy">We could not load this quiz editor right now.</p>
   </section>
   }
 </main>

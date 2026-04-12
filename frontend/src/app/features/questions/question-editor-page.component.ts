@@ -2,10 +2,11 @@ import { of, forkJoin } from 'rxjs';
 import { finalize } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
-import { Component, DestroyRef, HostListener, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import { AuthService } from '../../core/auth/auth.service';
 import { CategoryDto } from '../../core/categories/category.models';
 import { CategoryService } from '../../core/categories/category.service';
 import { PendingChangesDialogService } from '../../core/navigation/pending-changes-dialog.service';
@@ -49,6 +50,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
   private readonly formBuilder = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
+  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly categoryService = inject(CategoryService);
   private readonly questionService = inject(QuestionService);
@@ -73,6 +75,12 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
   readonly toasts = signal<ToastItem[]>([]);
   readonly promptDraft = signal('');
   readonly duplicatePromptHint = signal('');
+  readonly canManageCourse = computed(() => {
+    const currentCourse = this.course();
+    const currentUserId = this.authService.user()?.id;
+
+    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
+  });
 
   readonly form = this.formBuilder.nonNullable.group({
     prompt: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(1000)]],
@@ -146,6 +154,11 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
 
     if (!Number.isFinite(this.courseId)) {
       this.pushToast('Invalid link', 'This course link is invalid.', 'error');
+      return;
+    }
+
+    if (!this.canManageCourse()) {
+      this.pushToast('Editing unavailable', 'Only the owner of this course can create or edit questions.', 'error');
       return;
     }
 
@@ -295,39 +308,54 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
 
     this.isLoading.set(true);
 
-    forkJoin({
-      course: this.courseService.fetchCourse(this.courseId),
-      categories: this.categoryService.fetchCategories(this.courseId),
-      questions: this.questionService.fetchQuestions(this.courseId),
-      question: this.isEditing ? this.questionService.fetchQuestion(this.courseId, this.questionId) : of(null),
-      versions: this.isEditing ? this.questionService.fetchQuestionVersions(this.courseId, this.questionId) : of([])
-    })
+    this.courseService.fetchCourse(this.courseId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ course, categories, questions, question, versions }) => {
+        next: (course) => {
           this.course.set(course);
-          this.categories.set(categories);
-          this.existingQuestions.set(questions);
-          this.question.set(question);
-          this.versions.set(versions);
 
-          if (question) {
-            this.form.reset({ prompt: question.prompt }, { emitEvent: false });
-            this.setAnswers(question.answers.map((answer) => ({
-              content: answer.content,
-              correct: answer.correct
-            })));
-            this.selectedCategoryIds.set(question.categories.map((category) => category.id));
+          if (!this.canManageCourse()) {
+            this.isLoading.set(false);
+            return;
           }
 
-          this.promptDraft.set(this.form.controls.prompt.getRawValue());
-          this.refreshDuplicatePromptHint();
+          forkJoin({
+            categories: this.categoryService.fetchCategories(this.courseId),
+            questions: this.questionService.fetchQuestions(this.courseId),
+            question: this.isEditing ? this.questionService.fetchQuestion(this.courseId, this.questionId) : of(null),
+            versions: this.isEditing ? this.questionService.fetchQuestionVersions(this.courseId, this.questionId) : of([])
+          })
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+              next: ({ categories, questions, question, versions }) => {
+                this.categories.set(categories);
+                this.existingQuestions.set(questions);
+                this.question.set(question);
+                this.versions.set(versions);
 
-          this.isLoading.set(false);
+                if (question) {
+                  this.form.reset({ prompt: question.prompt }, { emitEvent: false });
+                  this.setAnswers(question.answers.map((answer) => ({
+                    content: answer.content,
+                    correct: answer.correct
+                  })));
+                  this.selectedCategoryIds.set(question.categories.map((category) => category.id));
+                }
+
+                this.promptDraft.set(this.form.controls.prompt.getRawValue());
+                this.refreshDuplicatePromptHint();
+
+                this.isLoading.set(false);
+              },
+              error: (error) => {
+                this.isLoading.set(false);
+                this.pushToast('Load failed', extractApiMessage(error) ?? 'Unable to load this question workspace right now.', 'error');
+              }
+            });
         },
         error: (error) => {
           this.isLoading.set(false);
-          this.pushToast('Load failed', extractApiMessage(error) ?? 'Unable to load this question workspace right now.', 'error');
+          this.pushToast('Load failed', extractApiMessage(error) ?? 'Unable to load this course right now.', 'error');
         }
       });
   }
