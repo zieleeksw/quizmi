@@ -36,6 +36,38 @@ class UserFacade(
         return savedUser.toDto()
     }
 
+    @Transactional
+    fun ensureBootstrapAdmin(
+        email: String,
+        password: String
+    ): UserDto {
+        emailValidator.validate(email)
+        passwordValidator.validate(password)
+
+        val existingUser = userRepository.findByEmail(email).orElse(null)
+
+        if (existingUser != null) {
+            val passwordMatches = passwordEncoder.matches(password, existingUser.passwordHash)
+
+            if (existingUser.role != UserRole.ADMIN || !passwordMatches) {
+                existingUser.applyBootstrapAdmin(passwordEncoder.encode(password)!!)
+                return userRepository.save(existingUser).toDto()
+            }
+
+            return existingUser.toDto()
+        }
+
+        val savedUser = userRepository.save(
+            UserEntity(
+                email = email,
+                passwordHash = passwordEncoder.encode(password)!!,
+                role = UserRole.ADMIN
+            )
+        )
+
+        return savedUser.toDto()
+    }
+
     @Transactional(readOnly = true)
     fun findUserByEmailOrThrow(email: String): UserDto {
         val user = userRepository.findByEmail(email)

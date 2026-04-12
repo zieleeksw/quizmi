@@ -46,4 +46,9 @@ open class UserEntity protected constructor() {
         this.passwordHash = passwordHash
         this.role = role
     }
+
+    fun applyBootstrapAdmin(passwordHash: String) {
+        this.passwordHash = passwordHash
+        this.role = UserRole.ADMIN
+    }
 }

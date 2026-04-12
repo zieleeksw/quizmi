@@ -7,6 +7,11 @@ spring:
     change-log: classpath:db/liquibase-changelog.xml
 
 app:
+  bootstrap:
+    admin:
+      enabled: ${QUIZMI_BOOTSTRAP_ADMIN_ENABLED:false}
+      email: ${QUIZMI_BOOTSTRAP_ADMIN_EMAIL:}
+      password: ${QUIZMI_BOOTSTRAP_ADMIN_PASSWORD:}
   cors:
     allowed-origin-patterns: ${QUIZMI_CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:4200,http://127.0.0.1:4200,http://192.168.*:4200,http://10.*.*.*:4200}
   security:

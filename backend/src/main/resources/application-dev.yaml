@@ -8,3 +8,10 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+
+app:
+  bootstrap:
+    admin:
+      enabled: ${QUIZMI_BOOTSTRAP_ADMIN_ENABLED:true}
+      email: ${QUIZMI_BOOTSTRAP_ADMIN_EMAIL:admin@admin.com}
+      password: ${QUIZMI_BOOTSTRAP_ADMIN_PASSWORD:adminadminadmin}
