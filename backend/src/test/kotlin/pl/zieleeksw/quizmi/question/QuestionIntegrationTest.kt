@@ -162,7 +162,8 @@ class QuestionIntegrationTest : IntegrationTest() {
         )
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.exception").value("MethodArgumentNotValidException"))
-            .andExpect(jsonPath("$.fieldErrors[0].message").value("Question answers must be unique."))
+            .andExpect(jsonPath("$.errors[0].field").value("answers"))
+            .andExpect(jsonPath("$.errors[0].message").value("Question answers must be unique."))
     }
 
     @Test
