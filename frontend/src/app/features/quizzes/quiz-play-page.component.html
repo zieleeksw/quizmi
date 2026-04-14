@@ -31,42 +31,68 @@
     </div>
   </section>
   } @else {
-  <section class="app-panel quiz-play-grid">
-    <aside class="quiz-play-nav">
-      @for (question of orderedQuestions(); track question.id; let index = $index) {
-      <button class="quiz-play-nav__item" type="button" [class.quiz-play-nav__item--active]="index === currentIndex()"
-        [class.quiz-play-nav__item--answered]="(answersMap()[question.id]?.length ?? 0) > 0"
-        (click)="openQuestion(index)">
-        <strong>{{ index + 1 }}</strong>
-        <span>{{ question.prompt }}</span>
-      </button>
-      }
-    </aside>
+  <section class="app-panel quiz-play-stage">
+    <div class="quiz-play-progress">
+      <div class="quiz-play-progress__meta">
+        <span class="quiz-play-progress__count">{{ currentIndex() + 1 }}/{{ orderedQuestions().length }}</span>
+        <span class="quiz-play-progress__label">Current question</span>
+      </div>
+      <div class="quiz-play-progress__track" aria-hidden="true">
+        <div class="quiz-play-progress__fill" [style.width.%]="progressValue()"></div>
+      </div>
+    </div>
 
     <article class="quiz-play-question">
       @if (currentQuestion(); as question) {
       <div class="quiz-play-question__header">
-        <p class="app-eyebrow">Question {{ currentIndex() + 1 }} / {{ orderedQuestions().length }}</p>
-        <h2>{{ question.prompt }}</h2>
+        <div>
+          <p class="app-eyebrow">Question {{ currentIndex() + 1 }}</p>
+          <h2>{{ question.prompt }}</h2>
+        </div>
+
+        @if (questionStatusLabel(question.id); as statusLabel) {
+        <span class="quiz-play-question__result" [class.quiz-play-question__result--correct]="statusLabel === 'Correct'">
+          {{ statusLabel }}
+        </span>
+        }
       </div>
 
       <div class="quiz-play-options">
         @for (answer of currentOptions(); track answer.id; let index = $index) {
-        <label class="quiz-play-option" [class.quiz-play-option--selected]="isSelected(question.id, answer.id)">
-          <input type="checkbox" [checked]="isSelected(question.id, answer.id)" (change)="toggleAnswer(answer.id)" />
+        <label class="quiz-play-option" [class.quiz-play-option--selected]="isSelected(question.id, answer.id)"
+          [class.quiz-play-option--selected-correct]="isSelectedCorrect(question.id, answer.id)"
+          [class.quiz-play-option--selected-wrong]="isSelectedWrong(question.id, answer.id)"
+          [class.quiz-play-option--missed-correct]="isMissedCorrect(question.id, answer.id)"
+          [class.quiz-play-option--locked]="currentQuestionChecked()">
+          <input type="checkbox" [checked]="isSelected(question.id, answer.id)" [disabled]="currentQuestionChecked()"
+            (change)="toggleAnswer(answer.id)" />
           <span class="quiz-play-option__letter">{{ answerLabel(index) }}</span>
-          <span>{{ answer.content }}</span>
+          <div class="quiz-play-option__copy">
+            <span class="quiz-play-option__text">{{ answer.content }}</span>
+            @if (answerStateLabel(question.id, answer.id); as stateLabel) {
+            <div class="quiz-play-option__badges">
+              <span class="quiz-play-option__badge" [class.quiz-play-option__badge--wrong]="isSelectedWrong(question.id, answer.id)"
+                [class.quiz-play-option__badge--correct]="!isSelectedWrong(question.id, answer.id)">
+                {{ stateLabel }}
+              </span>
+            </div>
+            }
+          </div>
         </label>
         }
       </div>
 
+      @if (reviewHint(question.id); as hint) {
+      <p class="quiz-play-question__hint">{{ hint }}</p>
+      } @else if (currentQuestionChecked()) {
+      <p class="quiz-play-question__hint quiz-play-question__hint--correct">This question has been checked. Continue when you're ready.</p>
+      }
+
       <div class="quiz-play-actions">
         <app-action-button label="Previous" [routerLink]="null" tone="secondary" [disabled]="currentIndex() === 0"
           (clicked)="goToPreviousQuestion()" />
-        <app-action-button [label]="currentIndex() === orderedQuestions().length - 1 ? 'Finish' : 'Next'"
-          [routerLink]="null"
-          [disabled]="currentIndex() === orderedQuestions().length - 1 ? !allQuestionsAnswered() || isSubmitting() : !currentQuestionAnswered() || isSaving()"
-          (clicked)="currentIndex() === orderedQuestions().length - 1 ? finishAttempt() : goToNextQuestion()" />
+        <app-action-button [label]="primaryActionLabel()" [routerLink]="null" [disabled]="isSaving() || isSubmitting()"
+          (clicked)="handlePrimaryAction()" />
       </div>
       } @else {
       <div class="quiz-play-empty">

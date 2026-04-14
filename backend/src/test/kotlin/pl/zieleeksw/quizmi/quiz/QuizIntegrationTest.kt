@@ -182,6 +182,39 @@ class QuizIntegrationTest : IntegrationTest() {
             .andExpect(jsonPath("$.questions[0].answeredCorrectly").value(true))
     }
 
+    @Test
+    fun `should allow finishing quiz attempt with skipped question`() {
+        val authentication = registerAndLogin("quiz.skip@quizmi.app")
+        val courseId = createCourseAndReadId(authentication.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, authentication.accessToken, "Authentication")
+        val questionId = createQuestionAndReadId(courseId, authentication.accessToken, categoryId)
+        val quizId = createQuizAndReadId(courseId, authentication.accessToken, questionId)
+
+        val attemptResponse = mockMvc.perform(
+            post("/courses/{courseId}/quizzes/{quizId}/attempts", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content("""{"answers":[]}""")
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.correctAnswers").value(0))
+            .andExpect(jsonPath("$.totalQuestions").value(1))
+            .andReturn()
+            .response
+            .contentAsString
+
+        val attemptId = objectMapper.readTree(attemptResponse)["id"].asLong()
+
+        mockMvc.perform(
+            get("/courses/{courseId}/attempts/{attemptId}", courseId, attemptId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.questions[0].questionId").value(questionId))
+            .andExpect(jsonPath("$.questions[0].selectedAnswerIds.length()").value(0))
+            .andExpect(jsonPath("$.questions[0].answeredCorrectly").value(false))
+    }
+
     private fun registerAndLogin(email: String): AuthIdentity {
         val password = "password12345678"
 

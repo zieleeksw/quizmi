@@ -86,19 +86,11 @@ class QuizAttemptFacade(
     }
 
     private fun normalizeSubmittedAnswers(answers: List<QuizAttemptAnswerRequest>): Map<Long, Set<Long>> {
-        if (answers.isEmpty()) {
-            throw IllegalArgumentException("Quiz attempt must contain at least 1 answer.")
-        }
-
         val submittedAnswers = linkedMapOf<Long, Set<Long>>()
 
         answers.forEach { answer ->
             val questionId = answer.questionId ?: throw IllegalArgumentException("Quiz attempt answer question id is required.")
             val normalizedAnswerIds = answer.answerIds.orEmpty().toSet()
-
-            if (normalizedAnswerIds.isEmpty()) {
-                throw IllegalArgumentException("Quiz attempt must contain at least 1 selected answer for each question.")
-            }
 
             if (submittedAnswers.putIfAbsent(questionId, normalizedAnswerIds) != null) {
                 throw IllegalArgumentException("Quiz attempt cannot contain duplicate question answers.")
@@ -128,10 +120,6 @@ class QuizAttemptFacade(
     }
 
     private fun assertSubmittedQuestionsMatchQuiz(submittedQuestionIds: Set<Long>, questionSpec: AttemptQuestionSpec) {
-        if (submittedQuestionIds.size != questionSpec.expectedCount) {
-            throw IllegalArgumentException("Quiz attempt must answer every quiz question exactly once.")
-        }
-
         if (!questionSpec.allowedQuestionIds.containsAll(submittedQuestionIds)) {
             throw IllegalArgumentException("Quiz attempt contains questions outside the selected quiz.")
         }
@@ -143,7 +131,6 @@ class QuizAttemptFacade(
         questionsById: Map<Long, QuestionDto>
     ): List<ReviewQuestionSnapshot> {
         return orderedQuestionIds
-            .filter { submittedAnswers.containsKey(it) }
             .map { questionId ->
                 val question = questionsById[questionId]
                     ?: throw IllegalArgumentException("Quiz attempt contains questions outside the selected quiz.")

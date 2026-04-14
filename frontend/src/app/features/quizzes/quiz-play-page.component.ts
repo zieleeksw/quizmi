@@ -45,6 +45,7 @@ export class QuizPlayPageComponent {
   readonly isSubmitting = signal(false);
   readonly completedAttempt = signal<QuizAttemptDto | null>(null);
   readonly toasts = signal<ToastItem[]>([]);
+  readonly checkedQuestionIds = signal<Set<number>>(new Set<number>());
 
   readonly orderedQuestions = computed(() => {
     const questionMap = this.questionsById();
@@ -59,9 +60,15 @@ export class QuizPlayPageComponent {
     const question = this.currentQuestion();
     return question ? (this.answersMap()[question.id] ?? []).length > 0 : false;
   });
-  readonly allQuestionsAnswered = computed(() =>
-    this.orderedQuestions().every((question) => (this.answersMap()[question.id] ?? []).length > 0)
-  );
+  readonly currentQuestionChecked = computed(() => {
+    const question = this.currentQuestion();
+    return question ? this.checkedQuestionIds().has(question.id) : false;
+  });
+  readonly isLastQuestion = computed(() => this.currentIndex() === this.orderedQuestions().length - 1);
+  readonly progressValue = computed(() => {
+    const total = this.orderedQuestions().length;
+    return total ? ((this.currentIndex() + 1) / total) * 100 : 0;
+  });
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -92,7 +99,7 @@ export class QuizPlayPageComponent {
     const question = this.currentQuestion();
     const session = this.session();
 
-    if (!question || !session) {
+    if (!question || !session || this.isQuestionChecked(question.id)) {
       return;
     }
 
@@ -132,11 +139,40 @@ export class QuizPlayPageComponent {
     this.openQuestion(Math.min(this.currentIndex() + 1, this.orderedQuestions().length - 1));
   }
 
+  handlePrimaryAction(): void {
+    const question = this.currentQuestion();
+
+    if (!question) {
+      return;
+    }
+
+    if (this.currentQuestionChecked()) {
+      if (this.isLastQuestion()) {
+        this.finishAttempt();
+        return;
+      }
+
+      this.goToNextQuestion();
+      return;
+    }
+
+    if (this.currentQuestionAnswered()) {
+      this.checkCurrentQuestion();
+      return;
+    }
+
+    if (this.isLastQuestion()) {
+      this.finishAttempt();
+      return;
+    }
+
+    this.goToNextQuestion();
+  }
+
   finishAttempt(): void {
     const session = this.session();
 
-    if (!session || !this.allQuestionsAnswered()) {
-      this.pushToast('Incomplete quiz', 'Answer every quiz question before finishing the attempt.', 'error');
+    if (!session) {
       return;
     }
 
@@ -189,6 +225,88 @@ export class QuizPlayPageComponent {
     }
 
     return [...question.answers].sort((left, right) => this.hashSeed(`${question.id}:${left.id}`) - this.hashSeed(`${question.id}:${right.id}`));
+  }
+
+  primaryActionLabel(): string {
+    if (this.currentQuestionChecked()) {
+      return this.isLastQuestion() ? 'Finish quiz' : 'Next';
+    }
+
+    if (this.currentQuestionAnswered()) {
+      return 'Check answer';
+    }
+
+    return this.isLastQuestion() ? 'Finish quiz' : 'Skip';
+  }
+
+  questionStatusLabel(questionId: number): string | null {
+    if (!this.isQuestionChecked(questionId)) {
+      return null;
+    }
+
+    return this.isQuestionAnsweredCorrectly(questionId) ? 'Correct' : 'Incorrect';
+  }
+
+  isSelectedWrong(questionId: number, answerId: number): boolean {
+    return this.isQuestionChecked(questionId) && this.isSelected(questionId, answerId) && !this.isCorrect(questionId, answerId);
+  }
+
+  isSelectedCorrect(questionId: number, answerId: number): boolean {
+    return this.isQuestionChecked(questionId) && this.isSelected(questionId, answerId) && this.isCorrect(questionId, answerId);
+  }
+
+  isMissedCorrect(questionId: number, answerId: number): boolean {
+    return this.isQuestionChecked(questionId) && !this.isSelected(questionId, answerId) && this.isCorrect(questionId, answerId);
+  }
+
+  answerStateLabel(questionId: number, answerId: number): string | null {
+    if (this.isSelectedCorrect(questionId, answerId)) {
+      return 'Your answer is correct';
+    }
+
+    if (this.isSelectedWrong(questionId, answerId)) {
+      return 'Your answer is incorrect';
+    }
+
+    if (this.isMissedCorrect(questionId, answerId)) {
+      return 'Correct answer';
+    }
+
+    return null;
+  }
+
+  reviewHint(questionId: number): string | null {
+    if (!this.isQuestionChecked(questionId) || this.isQuestionAnsweredCorrectly(questionId)) {
+      return null;
+    }
+
+    const question = this.questionsById()[questionId];
+
+    if (!question) {
+      return null;
+    }
+
+    const selectedAnswerIds = new Set(this.answersMap()[questionId] ?? []);
+    const selectedWrongCount = question.answers.filter((answer) => selectedAnswerIds.has(answer.id) && !answer.correct).length;
+    const missedCorrectCount = question.answers.filter((answer) => answer.correct && !selectedAnswerIds.has(answer.id)).length;
+
+    if (selectedWrongCount > 0 && missedCorrectCount > 0) {
+      return 'You selected an incorrect answer and missed a correct one.';
+    }
+
+    if (selectedWrongCount > 0) {
+      return selectedWrongCount === 1
+        ? 'You selected an incorrect answer.'
+        : `You selected ${selectedWrongCount} incorrect answers.`;
+    }
+
+    if (missedCorrectCount > 0) {
+      return missedCorrectCount === 1
+        ? 'You missed a correct answer.'
+        : `You missed ${missedCorrectCount} correct answers.`;
+    }
+
+    return null;
   }
 
   private loadPage(): void {
@@ -256,6 +374,42 @@ export class QuizPlayPageComponent {
       questionId: Number.parseInt(questionId, 10),
       answerIds
     }));
+  }
+
+  private checkCurrentQuestion(): void {
+    const question = this.currentQuestion();
+
+    if (!question) {
+      return;
+    }
+
+    this.checkedQuestionIds.update((checkedQuestionIds) => {
+      const nextCheckedQuestionIds = new Set(checkedQuestionIds);
+      nextCheckedQuestionIds.add(question.id);
+      return nextCheckedQuestionIds;
+    });
+  }
+
+  private isQuestionChecked(questionId: number): boolean {
+    return this.checkedQuestionIds().has(questionId);
+  }
+
+  private isCorrect(questionId: number, answerId: number): boolean {
+    return this.questionsById()[questionId]?.answers.some((answer) => answer.id === answerId && answer.correct) ?? false;
+  }
+
+  private isQuestionAnsweredCorrectly(questionId: number): boolean {
+    const question = this.questionsById()[questionId];
+
+    if (!question) {
+      return false;
+    }
+
+    const selectedAnswerIds = new Set(this.answersMap()[questionId] ?? []);
+    const correctAnswerIds = question.answers.filter((answer) => answer.correct).map((answer) => answer.id);
+
+    return correctAnswerIds.length === selectedAnswerIds.size
+      && correctAnswerIds.every((answerId) => selectedAnswerIds.has(answerId));
   }
 
   private hashSeed(seed: string): number {
