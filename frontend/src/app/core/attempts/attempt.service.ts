@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
+import { API_BASE_URL } from '../config/app-runtime-config';
 import {
   QuizAttemptDetailDto,
   QuizAttemptDto,
@@ -13,7 +14,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class AttemptService {
   private readonly http = inject(HttpClient);
-  private readonly apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:8080`;
+  private readonly apiBaseUrl = inject(API_BASE_URL);
 
   fetchSessions(courseId: number): Observable<QuizSessionDto[]> {
     return this.http.get<QuizSessionDto[]>(`${this.apiBaseUrl}/courses/${courseId}/sessions`);

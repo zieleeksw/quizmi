@@ -3,6 +3,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, catchError, finalize, map, shareReplay, throwError } from 'rxjs';
 
+import { API_BASE_URL } from '../config/app-runtime-config';
 import { AuthenticationDto, AuthSession, LoginRequest, RegisterRequest, UserDto } from './auth.models';
 
 const AUTH_STORAGE_KEY = 'quizmi.auth-session';
@@ -11,7 +12,7 @@ const AUTH_STORAGE_KEY = 'quizmi.auth-session';
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
-  private readonly apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:8080`;
+  private readonly apiBaseUrl = inject(API_BASE_URL);
   private readonly sessionState = signal<AuthSession | null>(this.restoreSession());
   private refreshRequest$: Observable<AuthSession> | null = null;
 

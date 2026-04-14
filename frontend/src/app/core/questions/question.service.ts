@@ -2,12 +2,13 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
+import { API_BASE_URL } from '../config/app-runtime-config';
 import { QuestionDto, QuestionPageDto, QuestionVersionDto, SaveQuestionRequest } from './question.models';
 
 @Injectable({ providedIn: 'root' })
 export class QuestionService {
   private readonly http = inject(HttpClient);
-  private readonly apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:8080`;
+  private readonly apiBaseUrl = inject(API_BASE_URL);
 
   fetchQuestions(courseId: number): Observable<QuestionDto[]> {
     return this.http.get<QuestionDto[]>(`${this.apiBaseUrl}/courses/${courseId}/questions`);

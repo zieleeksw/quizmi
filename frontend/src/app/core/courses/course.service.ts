@@ -2,12 +2,13 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
+import { API_BASE_URL } from '../config/app-runtime-config';
 import { CourseDto, CreateCourseRequest, UpdateCourseRequest } from './course.models';
 
 @Injectable({ providedIn: 'root' })
 export class CourseService {
   private readonly http = inject(HttpClient);
-  private readonly apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:8080`;
+  private readonly apiBaseUrl = inject(API_BASE_URL);
 
   fetchCourses(): Observable<CourseDto[]> {
     return this.http.get<CourseDto[]>(`${this.apiBaseUrl}/courses`);
