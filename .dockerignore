@@ -1,0 +1,12 @@
+.git
+.gitignore
+.idea
+.gradle-home
+.gradle-user
+frontend/node_modules
+frontend/dist
+backend/.gradle
+backend/build
+**/bin
+**/out
+**/*.iml
