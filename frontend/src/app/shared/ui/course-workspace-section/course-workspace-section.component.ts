@@ -11,6 +11,7 @@ export class CourseWorkspaceSectionComponent {
   readonly searchPlaceholder = input.required<string>();
   readonly searchValue = input('');
   readonly showSearch = input(true);
+  readonly searchDisabled = input(false);
   readonly showPagination = input(false);
   readonly pageLabel = input('');
   readonly previousDisabled = input(false);

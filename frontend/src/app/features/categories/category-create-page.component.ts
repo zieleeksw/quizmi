@@ -4,7 +4,6 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
-import { AuthService } from '../../core/auth/auth.service';
 import { CategoryService } from '../../core/categories/category.service';
 import { CourseDto } from '../../core/courses/course.models';
 import { CourseService } from '../../core/courses/course.service';
@@ -25,7 +24,6 @@ export class CategoryCreatePageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly categoryService = inject(CategoryService);
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
@@ -38,12 +36,7 @@ export class CategoryCreatePageComponent {
   readonly hasSubmitted = signal(false);
   readonly serverFieldErrors = signal<Record<string, string>>({});
   readonly errorToasts = signal<ToastItem[]>([]);
-  readonly canManageCourse = computed(() => {
-    const currentCourse = this.course();
-    const currentUserId = this.authService.user()?.id;
-
-    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
-  });
+  readonly canManageCourse = computed(() => this.course()?.canManage ?? false);
 
   readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]]

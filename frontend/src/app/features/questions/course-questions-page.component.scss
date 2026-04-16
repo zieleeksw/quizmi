@@ -141,6 +141,11 @@
   font-weight: 700;
 }
 
+.course-question-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .course-question-chip--active {
   border-color: rgba(34, 108, 99, 0.2);
   background: rgba(34, 108, 99, 0.12);
@@ -232,6 +237,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
+}
+
+.course-question-card--locked {
+  opacity: 0.62;
+  filter: grayscale(0.16);
 }
 
 .course-question-card__meta {

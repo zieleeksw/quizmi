@@ -5,9 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pl.zieleeksw.quizmi.IntegrationTest
@@ -41,32 +39,115 @@ class QuestionIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    fun `should fetch questions and preview for any authenticated user`() {
+    fun `should limit question preview for user without course access`() {
         val owner = registerAndLogin("question.list@quizmi.app")
         val viewer = registerAndLogin("question.viewer@quizmi.app")
         val courseId = createCourseAndReadId(owner.accessToken)
         val authCategoryId = createCategoryAndReadId(courseId, owner.accessToken, "Authentication")
-        val jwtCategoryId = createCategoryAndReadId(courseId, owner.accessToken, "JWT")
 
-        createQuestion(courseId, owner.accessToken, authCategoryId, "Which token should stay on the client for refresh requests?")
-        createQuestion(courseId, owner.accessToken, jwtCategoryId, "Which claim usually carries the subject identifier?")
+        (1..6).forEach { index ->
+            createQuestion(
+                courseId,
+                owner.accessToken,
+                authCategoryId,
+                "Which preview question number $index should remain visible?"
+            )
+        }
 
         mockMvc.perform(
             get("/courses/{courseId}/questions", courseId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$.length()").value(5))
 
         mockMvc.perform(
             get("/courses/{courseId}/questions/preview", courseId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
-                .param("search", "subject")
-                .param("categoryId", jwtCategoryId.toString())
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.items.length()").value(1))
-            .andExpect(jsonPath("$.items[0].categories[0].id").value(jwtCategoryId))
+            .andExpect(jsonPath("$.items.length()").value(5))
+            .andExpect(jsonPath("$.pageNumber").value(0))
+            .andExpect(jsonPath("$.pageSize").value(5))
+            .andExpect(jsonPath("$.totalItems").value(5))
+            .andExpect(jsonPath("$.totalPages").value(1))
+            .andExpect(jsonPath("$.hasNext").value(false))
+            .andExpect(jsonPath("$.hasPrevious").value(false))
+    }
+
+    @Test
+    fun `should reject locked question preview pagination and filters`() {
+        val owner = registerAndLogin("question.preview.owner@quizmi.app")
+        val viewer = registerAndLogin("question.preview.viewer@quizmi.app")
+        val courseId = createCourseAndReadId(owner.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, owner.accessToken, "Authentication")
+
+        (1..6).forEach { index ->
+            createQuestion(courseId, owner.accessToken, categoryId, "Which restricted preview question $index exists?")
+        }
+
+        mockMvc.perform(
+            get("/courses/{courseId}/questions/preview", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
+                .param("page", "1")
+        )
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.exception").value("AccessDeniedException"))
+
+        mockMvc.perform(
+            get("/courses/{courseId}/questions/preview", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
+                .param("size", "6")
+        )
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.exception").value("AccessDeniedException"))
+
+        mockMvc.perform(
+            get("/courses/{courseId}/questions/preview", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
+                .param("search", "restricted")
+        )
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.exception").value("AccessDeniedException"))
+
+        mockMvc.perform(
+            get("/courses/{courseId}/questions/preview", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
+                .param("categoryId", categoryId.toString())
+        )
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.exception").value("AccessDeniedException"))
+    }
+
+    @Test
+    fun `should allow moderator to update question`() {
+        val owner = registerAndLogin("question.moderator.owner@quizmi.app")
+        val moderator = registerAndLogin("question.moderator.member@quizmi.app")
+        val courseId = createCourseAndReadId(owner.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, owner.accessToken, "Authentication")
+        val questionId = createQuestionAndReadId(
+            courseId,
+            owner.accessToken,
+            categoryId,
+            "Which flow returns a fresh access token to the browser?"
+        )
+
+        requestAndApproveCourseJoin(courseId, moderator, owner)
+        promoteToModerator(courseId, moderator, owner)
+
+        mockMvc.perform(
+            put("/courses/{courseId}/questions/{questionId}", courseId, questionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${moderator.accessToken}")
+                .content(
+                    """
+                    {"prompt":"Which backend flow returns a fresh access token to the browser?","answers":[{"content":"Refresh token flow","correct":true},{"content":"CORS preflight","correct":false}],"categoryIds":[$categoryId]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(questionId))
+            .andExpect(jsonPath("$.currentVersionNumber").value(2))
     }
 
     @Test
@@ -227,6 +308,7 @@ class QuestionIntegrationTest : IntegrationTest() {
             .contentAsString
 
         return AuthIdentity(
+            userId = loginResponse.readJsonNumber("user", "id"),
             accessToken = loginResponse.readJsonValue("accessToken")
         )
     }
@@ -304,6 +386,20 @@ class QuestionIntegrationTest : IntegrationTest() {
         return response.readJsonNumber("id")
     }
 
+    private fun promoteToModerator(
+        courseId: Long,
+        member: AuthIdentity,
+        owner: AuthIdentity
+    ) {
+        mockMvc.perform(
+            put("/courses/{courseId}/members/{memberUserId}/role", courseId, member.userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${owner.accessToken}")
+                .content("""{"role":"MODERATOR"}""")
+        )
+            .andExpect(status().isOk)
+    }
+
     private fun String.readJsonValue(fieldName: String): String {
         val pattern = """"$fieldName"\s*:\s*\{\s*"value"\s*:\s*"([^"]+)"""".toRegex()
         val match = pattern.find(this)
@@ -320,7 +416,38 @@ class QuestionIntegrationTest : IntegrationTest() {
         return match.groupValues[1].toLong()
     }
 
+    private fun String.readJsonNumber(
+        objectName: String,
+        fieldName: String
+    ): Long {
+        val pattern = """"$objectName"\s*:\s*\{[^}]*"$fieldName"\s*:\s*(\d+)""".toRegex()
+        val match = pattern.find(this)
+            ?: throw IllegalStateException("Field $objectName.$fieldName was not found in response: $this")
+
+        return match.groupValues[1].toLong()
+    }
+
+    private fun requestAndApproveCourseJoin(
+        courseId: Long,
+        requester: QuestionIntegrationTest.AuthIdentity,
+        approver: QuestionIntegrationTest.AuthIdentity
+    ) {
+        mockMvc.perform(
+            post("/courses/{courseId}/join-requests", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${requester.accessToken}")
+        )
+            .andExpect(status().isCreated)
+
+        mockMvc.perform(
+            post("/courses/{courseId}/members/{memberUserId}/approve", courseId, requester.userId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${approver.accessToken}")
+        )
+            .andExpect(status().isOk)
+    }
+
+
     private data class AuthIdentity(
+        val userId: Long,
         val accessToken: String
     )
 }

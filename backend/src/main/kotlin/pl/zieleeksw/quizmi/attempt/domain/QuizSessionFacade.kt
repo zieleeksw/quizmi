@@ -28,13 +28,13 @@ class QuizSessionFacade(
 
     @Transactional(readOnly = true)
     fun fetchCourseSessions(courseId: Long, userId: Long): List<QuizSessionDto> {
-        assertCourseVisibility(courseId)
+        assertCourseVisibility(courseId, userId)
         return quizSessionRepository.findAllByCourseIdAndUserIdOrderByUpdatedAtDesc(courseId, userId).map { toDto(it) }
     }
 
     @Transactional
     fun createOrResumeSession(courseId: Long, quizId: Long, userId: Long): QuizSessionDto {
-        assertCourseVisibility(courseId)
+        assertCourseVisibility(courseId, userId)
         val quiz = quizFacade.fetchQuizForCourse(courseId, quizId, userId)
 
         return quizSessionRepository.findByCourseIdAndQuizIdAndUserId(courseId, quizId, userId)
@@ -50,7 +50,7 @@ class QuizSessionFacade(
         currentIndex: Int,
         answers: List<QuizAttemptAnswerRequest>
     ): QuizSessionDto {
-        assertCourseVisibility(courseId)
+        assertCourseVisibility(courseId, userId)
         quizFacade.fetchQuizForCourse(courseId, quizId, userId)
 
         val entity = quizSessionRepository.findByCourseIdAndQuizIdAndUserId(courseId, quizId, userId)
@@ -222,7 +222,7 @@ class QuizSessionFacade(
         return Instant.ofEpochSecond(epochSecond, roundedMicros * 1_000L)
     }
 
-    private fun assertCourseVisibility(courseId: Long) {
-        courseFacade.fetchCourseById(courseId)
+    private fun assertCourseVisibility(courseId: Long, actorUserId: Long) {
+        courseFacade.fetchCourseForMember(courseId, actorUserId)
     }
 }

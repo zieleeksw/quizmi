@@ -1,10 +1,12 @@
 package pl.zieleeksw.quizmi.course
 
+import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
@@ -34,6 +36,10 @@ class CourseIntegrationTest : IntegrationTest() {
             .andExpect(jsonPath("$.description").value("A focused course for filters, JWTs, and authorization workflows."))
             .andExpect(jsonPath("$.ownerUserId").value(authentication.userId))
             .andExpect(jsonPath("$.ownerEmail").value("course.owner@quizmi.app"))
+            .andExpect(jsonPath("$.membershipRole").value("OWNER"))
+            .andExpect(jsonPath("$.membershipStatus").value("ACTIVE"))
+            .andExpect(jsonPath("$.canAccess").value(true))
+            .andExpect(jsonPath("$.canManage").value(true))
     }
 
     @Test
@@ -59,6 +65,9 @@ class CourseIntegrationTest : IntegrationTest() {
             .andExpect(jsonPath("$[0].ownerUserId").value(firstUser.userId))
             .andExpect(jsonPath("$[1].ownerUserId").value(secondUser.userId))
             .andExpect(jsonPath("$[2].ownerUserId").value(firstUser.userId))
+            .andExpect(jsonPath("$[0].membershipRole").value("OWNER"))
+            .andExpect(jsonPath("$[1].membershipRole").value(nullValue()))
+            .andExpect(jsonPath("$[1].canAccess").value(false))
     }
 
     @Test
@@ -81,6 +90,254 @@ class CourseIntegrationTest : IntegrationTest() {
             .andExpect(jsonPath("$.description").value("A focused course for filters, JWTs, and authorization workflows."))
             .andExpect(jsonPath("$.ownerUserId").value(authentication.userId))
             .andExpect(jsonPath("$.ownerEmail").value("details.owner@quizmi.app"))
+            .andExpect(jsonPath("$.canAccess").value(false))
+            .andExpect(jsonPath("$.membershipStatus").value(nullValue()))
+    }
+
+    @Test
+    fun `should create join request and allow owner to approve it`() {
+        val owner = registerAndLogin(email = "course.members.owner@quizmi.app")
+        val requester = registerAndLogin(email = "course.members.requester@quizmi.app")
+        val courseId = createCourseAndReadId(
+            accessToken = owner.accessToken,
+            name = "Spring Security Associate",
+            description = "A focused course for filters, JWTs, and authorization workflows."
+        )
+
+        mockMvc.perform(
+            post("/courses/{courseId}/join-requests", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${requester.accessToken}")
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.id").value(courseId))
+            .andExpect(jsonPath("$.membershipRole").value("MEMBER"))
+            .andExpect(jsonPath("$.membershipStatus").value("PENDING"))
+            .andExpect(jsonPath("$.canAccess").value(false))
+
+        mockMvc.perform(
+            get("/courses/{courseId}/members", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${owner.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.members.length()").value(1))
+            .andExpect(jsonPath("$.members[0].role").value("OWNER"))
+            .andExpect(jsonPath("$.pendingRequests.length()").value(1))
+            .andExpect(jsonPath("$.pendingRequests[0].email").value("course.members.requester@quizmi.app"))
+
+        mockMvc.perform(
+            post("/courses/{courseId}/members/{memberUserId}/approve", courseId, requester.userId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${owner.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.userId").value(requester.userId))
+            .andExpect(jsonPath("$.role").value("MEMBER"))
+            .andExpect(jsonPath("$.status").value("ACTIVE"))
+
+        mockMvc.perform(
+            get("/courses/{courseId}", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${requester.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.canAccess").value(true))
+            .andExpect(jsonPath("$.membershipRole").value("MEMBER"))
+            .andExpect(jsonPath("$.membershipStatus").value("ACTIVE"))
+    }
+
+    @Test
+    fun `should forbid pending requester from fetching course members`() {
+        val owner = registerAndLogin(email = "course.members.pending.owner@quizmi.app")
+        val requester = registerAndLogin(email = "course.members.pending.requester@quizmi.app")
+        val courseId = createCourseAndReadId(
+            accessToken = owner.accessToken,
+            name = "Spring Security Associate",
+            description = "A focused course for filters, JWTs, and authorization workflows."
+        )
+
+        mockMvc.perform(
+            post("/courses/{courseId}/join-requests", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${requester.accessToken}")
+        )
+            .andExpect(status().isCreated)
+
+        mockMvc.perform(
+            get("/courses/{courseId}/members", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${requester.accessToken}")
+        )
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.exception").value("AccessDeniedException"))
+    }
+
+    @Test
+    fun `should allow owner to promote active member to moderator`() {
+        val owner = registerAndLogin(email = "course.roles.owner@quizmi.app")
+        val requester = registerAndLogin(email = "course.roles.requester@quizmi.app")
+        val courseId = createCourseAndReadId(
+            accessToken = owner.accessToken,
+            name = "Spring Security Associate",
+            description = "A focused course for filters, JWTs, and authorization workflows."
+        )
+
+        requestAndApproveCourseJoin(courseId, requester, owner)
+
+        mockMvc.perform(
+            put("/courses/{courseId}/members/{memberUserId}/role", courseId, requester.userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${owner.accessToken}")
+                .content("""{"role":"MODERATOR"}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.userId").value(requester.userId))
+            .andExpect(jsonPath("$.role").value("MODERATOR"))
+            .andExpect(jsonPath("$.status").value("ACTIVE"))
+
+        mockMvc.perform(
+            get("/courses/{courseId}", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${requester.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.membershipRole").value("MODERATOR"))
+            .andExpect(jsonPath("$.canManage").value(true))
+    }
+
+    @Test
+    fun `should allow owner to remove active course member`() {
+        val owner = registerAndLogin(email = "course.remove.owner@quizmi.app")
+        val member = registerAndLogin(email = "course.remove.member@quizmi.app")
+        val courseId = createCourseAndReadId(
+            accessToken = owner.accessToken,
+            name = "Spring Security Associate",
+            description = "A focused course for filters, JWTs, and authorization workflows."
+        )
+
+        requestAndApproveCourseJoin(courseId, member, owner)
+
+        mockMvc.perform(
+            delete("/courses/{courseId}/members/{memberUserId}", courseId, member.userId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${owner.accessToken}")
+        )
+            .andExpect(status().isNoContent)
+
+        mockMvc.perform(
+            get("/courses/{courseId}", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${member.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.membershipRole").value(nullValue()))
+            .andExpect(jsonPath("$.membershipStatus").value(nullValue()))
+            .andExpect(jsonPath("$.canAccess").value(false))
+    }
+
+    @Test
+    fun `should allow moderator to demote moderator to member`() {
+        val owner = registerAndLogin(email = "course.roles.demote.owner@quizmi.app")
+        val moderator = registerAndLogin(email = "course.roles.demote.moderator@quizmi.app")
+        val secondModerator = registerAndLogin(email = "course.roles.demote.target@quizmi.app")
+        val courseId = createCourseAndReadId(
+            accessToken = owner.accessToken,
+            name = "Spring Security Associate",
+            description = "A focused course for filters, JWTs, and authorization workflows."
+        )
+
+        requestAndApproveCourseJoin(courseId, moderator, owner)
+        requestAndApproveCourseJoin(courseId, secondModerator, owner)
+        promoteToModerator(courseId, moderator, owner)
+        promoteToModerator(courseId, secondModerator, owner)
+
+        mockMvc.perform(
+            put("/courses/{courseId}/members/{memberUserId}/role", courseId, secondModerator.userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${moderator.accessToken}")
+                .content("""{"role":"MEMBER"}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.role").value("MEMBER"))
+    }
+
+    @Test
+    fun `should forbid moderator from promoting member to moderator`() {
+        val owner = registerAndLogin(email = "course.roles.promote.owner@quizmi.app")
+        val moderator = registerAndLogin(email = "course.roles.promote.moderator@quizmi.app")
+        val member = registerAndLogin(email = "course.roles.promote.member@quizmi.app")
+        val courseId = createCourseAndReadId(
+            accessToken = owner.accessToken,
+            name = "Spring Security Associate",
+            description = "A focused course for filters, JWTs, and authorization workflows."
+        )
+
+        requestAndApproveCourseJoin(courseId, moderator, owner)
+        requestAndApproveCourseJoin(courseId, member, owner)
+        promoteToModerator(courseId, moderator, owner)
+
+        mockMvc.perform(
+            put("/courses/{courseId}/members/{memberUserId}/role", courseId, member.userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${moderator.accessToken}")
+                .content("""{"role":"MODERATOR"}""")
+        )
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.exception").value("AccessDeniedException"))
+    }
+
+    @Test
+    fun `should allow moderator to remove active moderator`() {
+        val owner = registerAndLogin(email = "course.remove.mod.owner@quizmi.app")
+        val moderator = registerAndLogin(email = "course.remove.mod.moderator@quizmi.app")
+        val secondModerator = registerAndLogin(email = "course.remove.mod.target@quizmi.app")
+        val courseId = createCourseAndReadId(
+            accessToken = owner.accessToken,
+            name = "Spring Security Associate",
+            description = "A focused course for filters, JWTs, and authorization workflows."
+        )
+
+        requestAndApproveCourseJoin(courseId, moderator, owner)
+        requestAndApproveCourseJoin(courseId, secondModerator, owner)
+        promoteToModerator(courseId, moderator, owner)
+        promoteToModerator(courseId, secondModerator, owner)
+
+        mockMvc.perform(
+            delete("/courses/{courseId}/members/{memberUserId}", courseId, secondModerator.userId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${moderator.accessToken}")
+        )
+            .andExpect(status().isNoContent)
+    }
+
+    @Test
+    fun `should allow owner to decline pending join request`() {
+        val owner = registerAndLogin(email = "course.decline.owner@quizmi.app")
+        val requester = registerAndLogin(email = "course.decline.requester@quizmi.app")
+        val courseId = createCourseAndReadId(
+            accessToken = owner.accessToken,
+            name = "Spring Security Associate",
+            description = "A focused course for filters, JWTs, and authorization workflows."
+        )
+
+        mockMvc.perform(
+            post("/courses/{courseId}/join-requests", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${requester.accessToken}")
+        )
+            .andExpect(status().isCreated)
+
+        mockMvc.perform(
+            delete("/courses/{courseId}/members/{memberUserId}/request", courseId, requester.userId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${owner.accessToken}")
+        )
+            .andExpect(status().isNoContent)
+
+        mockMvc.perform(
+            get("/courses/{courseId}/members", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${owner.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.pendingRequests.length()").value(0))
+
+        mockMvc.perform(
+            get("/courses/{courseId}", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${requester.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.membershipRole").value(nullValue()))
+            .andExpect(jsonPath("$.membershipStatus").value(nullValue()))
+            .andExpect(jsonPath("$.canAccess").value(false))
     }
 
     @Test
@@ -202,6 +459,38 @@ class CourseIntegrationTest : IntegrationTest() {
                 .content(createCourseRequestJson(name, description))
         )
             .andExpect(status().isCreated)
+    }
+
+    private fun requestAndApproveCourseJoin(
+        courseId: Long,
+        requester: AuthIdentity,
+        approver: AuthIdentity
+    ) {
+        mockMvc.perform(
+            post("/courses/{courseId}/join-requests", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${requester.accessToken}")
+        )
+            .andExpect(status().isCreated)
+
+        mockMvc.perform(
+            post("/courses/{courseId}/members/{memberUserId}/approve", courseId, requester.userId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${approver.accessToken}")
+        )
+            .andExpect(status().isOk)
+    }
+
+    private fun promoteToModerator(
+        courseId: Long,
+        member: AuthIdentity,
+        owner: AuthIdentity
+    ) {
+        mockMvc.perform(
+            put("/courses/{courseId}/members/{memberUserId}/role", courseId, member.userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${owner.accessToken}")
+                .content("""{"role":"MODERATOR"}""")
+        )
+            .andExpect(status().isOk)
     }
 
     private fun createCourseAndReadId(

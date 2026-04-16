@@ -25,6 +25,10 @@ class QuizFacade(
     private val questionFacade: QuestionFacade
 ) {
 
+    companion object {
+        private const val PREVIEW_LIMIT = 3
+    }
+
     @Transactional
     fun createQuiz(
         courseId: Long,
@@ -61,10 +65,18 @@ class QuizFacade(
         actorUserId: Long
     ): List<QuizDto> {
         assertCourseVisibility(courseId)
+        val canAccessCourse = courseFacade.hasCourseAccess(courseId, actorUserId)
         val questions = questionFacade.fetchQuestions(courseId, actorUserId)
 
         return quizRepository.findAllByCourseIdAndActiveTrueOrderByCreatedAtDesc(courseId)
             .map { toCurrentQuizDto(it, questions) }
+            .let { quizzes ->
+                if (canAccessCourse) {
+                    quizzes
+                } else {
+                    quizzes.take(PREVIEW_LIMIT)
+                }
+            }
     }
 
     @Transactional(readOnly = true)
@@ -73,7 +85,7 @@ class QuizFacade(
         quizId: Long,
         actorUserId: Long
     ): QuizDto {
-        assertCourseVisibility(courseId)
+        courseFacade.fetchCourseForMember(courseId, actorUserId)
         val questions = questionFacade.fetchQuestions(courseId, actorUserId)
         return toCurrentQuizDto(findActiveQuizInCourseOrThrow(quizId, courseId), questions)
     }
@@ -408,11 +420,11 @@ class QuizFacade(
     }
 
     private fun assertCourseOwnership(courseId: Long, actorUserId: Long) {
-        courseFacade.fetchCourseForOwner(courseId, actorUserId)
+        courseFacade.fetchCourseForManager(courseId, actorUserId)
     }
 
     private fun assertCourseVisibility(courseId: Long) {
-        courseFacade.fetchCourseById(courseId)
+        courseFacade.assertCourseExists(courseId)
     }
 
     private data class QuizDraft(

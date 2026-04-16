@@ -52,6 +52,11 @@
   width: 100%;
 }
 
+.workspace-section__search .app-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .workspace-section__pagination {
   display: flex;
   justify-content: space-between;

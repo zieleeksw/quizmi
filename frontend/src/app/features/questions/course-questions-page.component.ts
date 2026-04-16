@@ -4,7 +4,6 @@ import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
-import { AuthService } from '../../core/auth/auth.service';
 import { CategoryDto } from '../../core/categories/category.models';
 import { CategoryService } from '../../core/categories/category.service';
 import { CourseDto } from '../../core/courses/course.models';
@@ -25,7 +24,6 @@ import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
 export class CourseQuestionsPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
-  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly categoryService = inject(CategoryService);
   private readonly questionService = inject(QuestionService);
@@ -44,12 +42,8 @@ export class CourseQuestionsPageComponent {
   readonly selectedCategoryId = signal<number | 'all'>('all');
   readonly requestedPage = signal(0);
   readonly errorToasts = signal<ToastItem[]>([]);
-  readonly canManageCourse = computed(() => {
-    const currentCourse = this.course();
-    const currentUserId = this.authService.user()?.id;
-
-    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
-  });
+  readonly canManageCourse = computed(() => this.course()?.canManage ?? false);
+  readonly canAccessCourse = computed(() => this.course()?.canAccess ?? false);
   readonly hasCategories = computed(() => this.categories().length > 0);
   readonly createQuestionHint = 'Add at least one category before creating questions.';
   readonly previewQuestions = computed(() => this.preview()?.items ?? []);
@@ -85,18 +79,30 @@ export class CourseQuestionsPageComponent {
   }
 
   updateSearchTerm(value: string): void {
+    if (!this.canAccessCourse()) {
+      return;
+    }
+
     this.searchTerm.set(value);
     this.requestedPage.set(0);
     this.loadPreview();
   }
 
   selectCategory(categoryId: number | 'all'): void {
+    if (!this.canAccessCourse()) {
+      return;
+    }
+
     this.selectedCategoryId.set(categoryId);
     this.requestedPage.set(0);
     this.loadPreview();
   }
 
   goToPreviousPage(): void {
+    if (!this.canAccessCourse()) {
+      return;
+    }
+
     const preview = this.preview();
 
     if (!preview?.hasPrevious) {
@@ -108,6 +114,10 @@ export class CourseQuestionsPageComponent {
   }
 
   goToNextPage(): void {
+    if (!this.canAccessCourse()) {
+      return;
+    }
+
     const preview = this.preview();
 
     if (!preview?.hasNext) {

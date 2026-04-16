@@ -4,7 +4,6 @@ import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
-import { AuthService } from '../../core/auth/auth.service';
 import { CategoryDto } from '../../core/categories/category.models';
 import { CategoryService } from '../../core/categories/category.service';
 import { CourseDto } from '../../core/courses/course.models';
@@ -23,7 +22,6 @@ import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
 export class CourseCategoriesPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
-  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly categoryService = inject(CategoryService);
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
@@ -38,12 +36,8 @@ export class CourseCategoriesPageComponent {
   readonly page = signal(0);
   readonly errorToasts = signal<ToastItem[]>([]);
   readonly pageSize = 9;
-  readonly canManageCourse = computed(() => {
-    const currentCourse = this.course();
-    const currentUserId = this.authService.user()?.id;
-
-    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
-  });
+  readonly canManageCourse = computed(() => this.course()?.canManage ?? false);
+  readonly canAccessCourse = computed(() => this.course()?.canAccess ?? false);
   readonly filteredCategories = computed(() => {
     const query = this.searchTerm().trim().toLowerCase();
 
@@ -88,15 +82,27 @@ export class CourseCategoriesPageComponent {
   }
 
   updateSearchTerm(value: string): void {
+    if (!this.canAccessCourse()) {
+      return;
+    }
+
     this.searchTerm.set(value);
     this.page.set(0);
   }
 
   goToPreviousPage(): void {
+    if (!this.canAccessCourse()) {
+      return;
+    }
+
     this.page.update((page) => Math.max(page - 1, 0));
   }
 
   goToNextPage(): void {
+    if (!this.canAccessCourse()) {
+      return;
+    }
+
     const totalPages = this.totalPages();
 
     if (!totalPages) {

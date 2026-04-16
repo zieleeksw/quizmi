@@ -18,6 +18,7 @@
         [placeholder]="searchPlaceholder()"
         [value]="searchValue()"
         [attr.aria-label]="searchPlaceholder()"
+        [disabled]="searchDisabled()"
         (input)="handleSearchInput(($any($event.target)).value)"
       />
     </div>

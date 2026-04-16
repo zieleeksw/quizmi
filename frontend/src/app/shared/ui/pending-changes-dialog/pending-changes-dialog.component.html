@@ -8,7 +8,7 @@
       aria-describedby="pending-dialog-message"
       (click)="$event.stopPropagation()"
     >
-      <p class="app-eyebrow">Unsaved Changes</p>
+      <p class="app-eyebrow">{{ dialog.state().eyebrow }}</p>
       <h2 id="pending-dialog-title" class="pending-dialog__title">{{ dialog.state().title }}</h2>
       <p id="pending-dialog-message" class="app-copy pending-dialog__message">{{ dialog.state().message }}</p>
 

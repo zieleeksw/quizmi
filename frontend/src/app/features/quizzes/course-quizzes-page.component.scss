@@ -207,6 +207,20 @@
   justify-content: flex-end;
 }
 
+.course-quiz-card--locked {
+  cursor: not-allowed;
+  opacity: 0.58;
+  filter: grayscale(0.18);
+}
+
+.course-quiz-card--locked:hover,
+.course-quiz-card--locked:focus-visible {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(24, 43, 73, 0.12);
+  outline: none;
+}
+
 .course-quizzes-empty {
   display: grid;
   gap: 0.55rem;

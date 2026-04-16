@@ -40,17 +40,39 @@ class CategoryIntegrationTest : IntegrationTest() {
         val viewer = registerAndLogin(email = "category.list.viewer@quizmi.app")
         val courseId = createCourseAndReadId(owner.accessToken)
 
-        createCategory(courseId, owner.accessToken, "Authentication")
-        createCategory(courseId, owner.accessToken, "Spring Security")
+        (1..11).forEach { index ->
+            createCategory(courseId, owner.accessToken, "Category $index")
+        }
 
         mockMvc.perform(
             get("/courses/{courseId}/categories", courseId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$.length()").value(9))
             .andExpect(jsonPath("$[0].courseId").value(courseId))
-            .andExpect(jsonPath("$[1].courseId").value(courseId))
+            .andExpect(jsonPath("$[8].courseId").value(courseId))
+    }
+
+    @Test
+    fun `should allow moderator to update category`() {
+        val owner = registerAndLogin(email = "category.moderator.owner@quizmi.app")
+        val moderator = registerAndLogin(email = "category.moderator.member@quizmi.app")
+        val courseId = createCourseAndReadId(owner.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, owner.accessToken, "Authentication")
+
+        requestAndApproveCourseJoin(courseId, moderator, owner)
+        promoteToModerator(courseId, moderator, owner)
+
+        mockMvc.perform(
+            put("/courses/{courseId}/categories/{categoryId}", courseId, categoryId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${moderator.accessToken}")
+                .content("""{"name":"Authentication Flows"}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(categoryId))
+            .andExpect(jsonPath("$.name").value("Authentication Flows"))
     }
 
     @Test
@@ -233,6 +255,38 @@ class CategoryIntegrationTest : IntegrationTest() {
             .contentAsString
 
         return response.readJsonNumber("id")
+    }
+
+    private fun requestAndApproveCourseJoin(
+        courseId: Long,
+        requester: AuthIdentity,
+        approver: AuthIdentity
+    ) {
+        mockMvc.perform(
+            post("/courses/{courseId}/join-requests", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${requester.accessToken}")
+        )
+            .andExpect(status().isCreated)
+
+        mockMvc.perform(
+            post("/courses/{courseId}/members/{memberUserId}/approve", courseId, requester.userId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${approver.accessToken}")
+        )
+            .andExpect(status().isOk)
+    }
+
+    private fun promoteToModerator(
+        courseId: Long,
+        member: AuthIdentity,
+        owner: AuthIdentity
+    ) {
+        mockMvc.perform(
+            put("/courses/{courseId}/members/{memberUserId}/role", courseId, member.userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${owner.accessToken}")
+                .content("""{"role":"MODERATOR"}""")
+        )
+            .andExpect(status().isOk)
     }
 
     private fun String.readJsonValue(fieldName: String): String {

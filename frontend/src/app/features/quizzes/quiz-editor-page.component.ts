@@ -5,7 +5,6 @@ import { Component, DestroyRef, HostListener, computed, inject, signal } from '@
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
-import { AuthService } from '../../core/auth/auth.service';
 import { CategoryDto } from '../../core/categories/category.models';
 import { CategoryService } from '../../core/categories/category.service';
 import { PendingChangesDialogService } from '../../core/navigation/pending-changes-dialog.service';
@@ -43,7 +42,6 @@ export class QuizEditorPageComponent implements PendingChangesAware {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly categoryService = inject(CategoryService);
   private readonly questionService = inject(QuestionService);
@@ -71,12 +69,7 @@ export class QuizEditorPageComponent implements PendingChangesAware {
   readonly isLoading = signal(true);
   readonly isSubmitting = signal(false);
   readonly toasts = signal<ToastItem[]>([]);
-  readonly canManageCourse = computed(() => {
-    const currentCourse = this.course();
-    const currentUserId = this.authService.user()?.id;
-
-    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
-  });
+  readonly canManageCourse = computed(() => this.course()?.canManage ?? false);
 
   readonly quizModes: QuizMode[] = ['manual', 'random', 'category'];
   readonly orderModes: QuizOrderMode[] = ['fixed', 'random'];
@@ -250,7 +243,7 @@ export class QuizEditorPageComponent implements PendingChangesAware {
 
   saveQuiz(): void {
     if (!this.canManageCourse()) {
-      this.pushToast('Editing unavailable', 'Only the owner of this course can create or edit quizzes.', 'error');
+      this.pushToast('Editing unavailable', 'Only the course owner, moderator, or global admin can create or edit quizzes.', 'error');
       return;
     }
 

@@ -6,10 +6,11 @@
     title="Course quiz library"
     searchPlaceholder="Search quizzes by name or category"
     [searchValue]="searchTerm()"
+    [searchDisabled]="!canAccessCourse()"
     [showPagination]="!isLoading() && !loadError() && visibleQuizzes().length > 0"
     [pageLabel]="pageLabel()"
-    [previousDisabled]="page() === 0"
-    [nextDisabled]="page() >= totalPages() - 1 || totalPages() === 0"
+    [previousDisabled]="!canAccessCourse() || page() === 0"
+    [nextDisabled]="!canAccessCourse() || page() >= totalPages() - 1 || totalPages() === 0"
     (searchValueChange)="updateSearchTerm($event)"
     (previousClicked)="goToPreviousPage()"
     (nextClicked)="goToNextPage()"
@@ -47,7 +48,13 @@
       } @else {
         <div class="course-quizzes-list">
           @for (quiz of visibleQuizzes(); track trackByQuizId($index, quiz)) {
-            <article class="course-quiz-card" tabindex="0" (click)="openQuizEditor(quiz.id)" (keydown.enter)="openQuizEditor(quiz.id)">
+            <article
+              class="course-quiz-card"
+              [class.course-quiz-card--locked]="!canAccessCourse()"
+              [attr.tabindex]="canAccessCourse() ? 0 : null"
+              (click)="openQuizEditor(quiz.id)"
+              (keydown.enter)="openQuizEditor(quiz.id)"
+            >
               <div class="course-quiz-card__top">
                 <div>
                   <p class="course-quiz-card__eyebrow">{{ quizModeLabel(quiz.mode) }}</p>
@@ -70,6 +77,9 @@
               <div class="course-quiz-card__meta">
                 <span>{{ quiz.resolvedQuestionCount }} questions</span>
                 <span>Version {{ quiz.currentVersionNumber }}</span>
+                @if (!canAccessCourse()) {
+                  <span>Access required</span>
+                }
               </div>
             </article>
           }

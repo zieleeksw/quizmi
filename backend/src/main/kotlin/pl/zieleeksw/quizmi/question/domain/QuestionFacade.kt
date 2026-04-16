@@ -1,5 +1,6 @@
 package pl.zieleeksw.quizmi.question.domain
 
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import pl.zieleeksw.quizmi.category.domain.CategoryEntity
@@ -25,6 +26,10 @@ class QuestionFacade(
     private val questionAnswersValidator: QuestionAnswersValidator,
     private val questionCategoryIdsValidator: QuestionCategoryIdsValidator
 ) {
+
+    companion object {
+        private const val PREVIEW_LIMIT = 5
+    }
 
     @Transactional
     fun createQuestion(
@@ -68,13 +73,30 @@ class QuestionFacade(
     }
 
     @Transactional(readOnly = true)
+    fun fetchQuestionListing(
+        courseId: Long,
+        actorUserId: Long
+    ): List<QuestionDto> {
+        assertCourseVisibility(courseId)
+        val canAccessCourse = courseFacade.hasCourseAccess(courseId, actorUserId)
+
+        return loadCurrentQuestions(courseId)
+            .let { questions ->
+                if (canAccessCourse) {
+                    questions
+                } else {
+                    questions.take(PREVIEW_LIMIT)
+                }
+            }
+    }
+
+    @Transactional(readOnly = true)
     fun fetchQuestions(
         courseId: Long,
         actorUserId: Long
     ): List<QuestionDto> {
         assertCourseVisibility(courseId)
-        return questionRepository.findAllByCourseIdOrderByCreatedAtDesc(courseId)
-            .map { toCurrentQuestionDto(it) }
+        return loadCurrentQuestions(courseId)
     }
 
     @Transactional(readOnly = true)
@@ -87,13 +109,24 @@ class QuestionFacade(
         categoryId: Long?
     ): QuestionPageDto {
         assertCourseVisibility(courseId)
+        val canAccessCourse = courseFacade.hasCourseAccess(courseId, actorUserId)
+
+        if (!canAccessCourse) {
+            assertPreviewRequestAllowedForLockedCourse(page, size, search, categoryId)
+        }
 
         val normalizedPage = page.coerceAtLeast(0)
         val normalizedSize = size.coerceIn(1, 50)
         val normalizedSearch = search?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
 
-        val filteredQuestions = questionRepository.findAllByCourseIdOrderByCreatedAtDesc(courseId)
-            .map { toCurrentQuestionDto(it) }
+        val filteredQuestions = loadCurrentQuestions(courseId)
+            .let { questions ->
+                if (canAccessCourse) {
+                    questions
+                } else {
+                    questions.take(PREVIEW_LIMIT)
+                }
+            }
             .filter { matchesCategory(it, categoryId) }
             .filter { matchesSearch(it, normalizedSearch) }
 
@@ -271,6 +304,11 @@ class QuestionFacade(
         return categoryIds.map { categoriesById[it]!! }
     }
 
+    private fun loadCurrentQuestions(courseId: Long): List<QuestionDto> {
+        return questionRepository.findAllByCourseIdOrderByCreatedAtDesc(courseId)
+            .map { toCurrentQuestionDto(it) }
+    }
+
     private fun toCurrentQuestionDto(question: QuestionEntity): QuestionDto {
         val currentVersion = questionVersionRepository.findByQuestionIdAndVersionNumber(
             question.id!!,
@@ -357,15 +395,26 @@ class QuestionFacade(
             question.categories.any { it.name.lowercase().contains(normalizedSearch) }
     }
 
+    private fun assertPreviewRequestAllowedForLockedCourse(
+        page: Int,
+        size: Int,
+        search: String?,
+        categoryId: Long?
+    ) {
+        if (page > 0 || size > PREVIEW_LIMIT || !search.isNullOrBlank() || categoryId != null) {
+            throw AccessDeniedException("Locked course previews are limited to the default first page.")
+        }
+    }
+
     private fun assertCourseOwnership(
         courseId: Long,
         actorUserId: Long
     ) {
-        courseFacade.fetchCourseForOwner(id = courseId, actorUserId = actorUserId)
+        courseFacade.fetchCourseForManager(id = courseId, actorUserId = actorUserId)
     }
 
     private fun assertCourseVisibility(courseId: Long) {
-        courseFacade.fetchCourseById(courseId)
+        courseFacade.assertCourseExists(courseId)
     }
 
     private data class NormalizedQuestionAnswer(

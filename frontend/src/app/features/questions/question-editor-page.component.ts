@@ -6,7 +6,6 @@ import { Component, DestroyRef, HostListener, computed, inject, signal } from '@
 import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
-import { AuthService } from '../../core/auth/auth.service';
 import { CategoryDto } from '../../core/categories/category.models';
 import { CategoryService } from '../../core/categories/category.service';
 import { PendingChangesDialogService } from '../../core/navigation/pending-changes-dialog.service';
@@ -50,7 +49,6 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
   private readonly formBuilder = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
-  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly categoryService = inject(CategoryService);
   private readonly questionService = inject(QuestionService);
@@ -75,12 +73,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
   readonly toasts = signal<ToastItem[]>([]);
   readonly promptDraft = signal('');
   readonly duplicatePromptHint = signal('');
-  readonly canManageCourse = computed(() => {
-    const currentCourse = this.course();
-    const currentUserId = this.authService.user()?.id;
-
-    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
-  });
+  readonly canManageCourse = computed(() => this.course()?.canManage ?? false);
 
   readonly form = this.formBuilder.nonNullable.group({
     prompt: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(1000)]],
@@ -158,7 +151,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
     }
 
     if (!this.canManageCourse()) {
-      this.pushToast('Editing unavailable', 'Only the owner of this course can create or edit questions.', 'error');
+      this.pushToast('Editing unavailable', 'Only the course owner, moderator, or global admin can create or edit questions.', 'error');
       return;
     }
 

@@ -2,9 +2,8 @@ import { finalize } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ActivatedRoute, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
-import { AuthService } from '../../core/auth/auth.service';
 import { CourseDto } from '../../core/courses/course.models';
 import { CourseService } from '../../core/courses/course.service';
 import { extractApiMessage } from '../../shared/api/api-error.utils';
@@ -21,8 +20,6 @@ import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/works
 export class CourseDetailsPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
-  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private toastId = 0;
@@ -30,13 +27,15 @@ export class CourseDetailsPageComponent {
   readonly courseId = Number.parseInt(this.route.snapshot.paramMap.get('courseId') ?? '', 10);
   readonly course = signal<CourseDto | null>(null);
   readonly isLoading = signal(true);
+  readonly isRequestingJoin = signal(false);
   readonly errorToasts = signal<ToastItem[]>([]);
   readonly pageTitle = computed(() => this.course()?.name ?? 'Course details');
-  readonly canManageCourse = computed(() => {
+  readonly canManageCourse = computed(() => this.course()?.canManage ?? false);
+  readonly canAccessCourse = computed(() => this.course()?.canAccess ?? false);
+  readonly joinRequestPending = computed(() => this.course()?.membershipStatus === 'PENDING');
+  readonly canRequestJoin = computed(() => {
     const currentCourse = this.course();
-    const currentUserId = this.authService.user()?.id;
-
-    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
+    return Boolean(currentCourse && !currentCourse.canAccess && currentCourse.membershipStatus !== 'PENDING');
   });
 
   constructor() {
@@ -60,6 +59,33 @@ export class CourseDetailsPageComponent {
     this.errorToasts.update((toasts) => toasts.filter((toast) => toast.id !== id));
   }
 
+  requestToJoin(): void {
+    if (!Number.isFinite(this.courseId) || !this.canRequestJoin()) {
+      return;
+    }
+
+    this.isRequestingJoin.set(true);
+
+    this.courseService
+      .requestToJoinCourse(this.courseId)
+      .pipe(
+        finalize(() => this.isRequestingJoin.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (course) => {
+          this.course.set(course);
+        },
+        error: (error) => {
+          this.pushToast(extractApiMessage(error) ?? 'Unable to send your join request right now.');
+        }
+      });
+  }
+
+  syncCourse(course: CourseDto): void {
+    this.course.set(course);
+  }
+
   private loadCourse(): void {
     if (!Number.isFinite(this.courseId)) {
       this.isLoading.set(false);
@@ -78,20 +104,11 @@ export class CourseDetailsPageComponent {
       .subscribe({
         next: (course) => {
           this.course.set(course);
-          this.ensureWorkspaceRoute(course.id);
         },
         error: (error) => {
           this.pushToast(extractApiMessage(error) ?? 'Unable to load this course right now.');
         }
       });
-  }
-
-  private ensureWorkspaceRoute(courseId: number): void {
-    const normalizedUrl = this.router.url.split('?')[0].replace(/\/+$/, '');
-
-    if (normalizedUrl === `/courses/${courseId}`) {
-      void this.router.navigate(['/courses', courseId, 'quizzes'], { replaceUrl: true });
-    }
   }
 
   private pushToast(message: string): void {

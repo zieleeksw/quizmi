@@ -6,10 +6,11 @@
     title="Category library"
     searchPlaceholder="Search categories"
     [searchValue]="searchTerm()"
+    [searchDisabled]="!canAccessCourse()"
     [showPagination]="!isLoading() && !loadError() && visibleCategories().length > 0"
     [pageLabel]="pageLabel()"
-    [previousDisabled]="page() === 0"
-    [nextDisabled]="page() >= totalPages() - 1 || totalPages() === 0"
+    [previousDisabled]="!canAccessCourse() || page() === 0"
+    [nextDisabled]="!canAccessCourse() || page() >= totalPages() - 1 || totalPages() === 0"
     (searchValueChange)="updateSearchTerm($event)"
     (previousClicked)="goToPreviousPage()"
     (nextClicked)="goToNextPage()"
@@ -62,7 +63,7 @@
                 </div>
               </a>
             } @else {
-              <article class="course-category-card course-category-card--static">
+              <article class="course-category-card course-category-card--static" [class.course-category-card--locked]="!canAccessCourse()">
                 <h3>{{ category.name }}</h3>
                 <div class="course-category-card__footer">
                   <div class="course-category-card__meta-block">
@@ -73,6 +74,12 @@
                     <div class="course-category-card__meta-block">
                       <span class="course-category-card__meta-label">Updated</span>
                       <strong class="course-category-card__meta-value">{{ category.updatedAt | date: 'mediumDate' }}</strong>
+                    </div>
+                  }
+                  @if (!canAccessCourse()) {
+                    <div class="course-category-card__meta-block">
+                      <span class="course-category-card__meta-label">Status</span>
+                      <strong class="course-category-card__meta-value">Access required</strong>
                     </div>
                   }
                 </div>

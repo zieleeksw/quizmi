@@ -5,7 +5,6 @@ import { ActivatedRoute, Router } from '@angular/router';
 
 import { AttemptService } from '../../core/attempts/attempt.service';
 import { QuizSessionDto } from '../../core/attempts/attempt.models';
-import { AuthService } from '../../core/auth/auth.service';
 import { CourseDto } from '../../core/courses/course.models';
 import { CourseService } from '../../core/courses/course.service';
 import { QuestionService } from '../../core/questions/question.service';
@@ -26,7 +25,6 @@ export class CourseQuizzesPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly questionService = inject(QuestionService);
   private readonly quizService = inject(QuizService);
@@ -44,12 +42,8 @@ export class CourseQuizzesPageComponent {
   readonly searchTerm = signal('');
   readonly page = signal(0);
   readonly toasts = signal<ToastItem[]>([]);
-  readonly canManageCourse = computed(() => {
-    const currentCourse = this.course();
-    const currentUserId = this.authService.user()?.id;
-
-    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
-  });
+  readonly canManageCourse = computed(() => this.course()?.canManage ?? false);
+  readonly canAccessCourse = computed(() => this.course()?.canAccess ?? false);
 
   readonly filteredQuizzes = computed(() => {
     const normalizedSearch = this.searchTerm().trim().toLocaleLowerCase();
@@ -101,15 +95,27 @@ export class CourseQuizzesPageComponent {
   }
 
   updateSearchTerm(value: string): void {
+    if (!this.canAccessCourse()) {
+      return;
+    }
+
     this.searchTerm.set(value);
     this.page.set(0);
   }
 
   goToPreviousPage(): void {
+    if (!this.canAccessCourse()) {
+      return;
+    }
+
     this.page.update((page) => Math.max(page - 1, 0));
   }
 
   goToNextPage(): void {
+    if (!this.canAccessCourse()) {
+      return;
+    }
+
     const totalPages = this.totalPages();
 
     if (!totalPages) {
@@ -120,6 +126,10 @@ export class CourseQuizzesPageComponent {
   }
 
   openQuizEditor(quizId: number): void {
+    if (!this.canAccessCourse()) {
+      return;
+    }
+
     void this.router.navigate(['/courses', this.courseId, 'quizzes', quizId]);
   }
 
@@ -176,6 +186,10 @@ export class CourseQuizzesPageComponent {
   }
 
   private loadSupplementalData(): void {
+    if (!this.canAccessCourse()) {
+      return;
+    }
+
     this.attemptService.fetchSessions(this.courseId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({

@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 
 export type PendingChangesDialogOptions = {
+  eyebrow?: string;
   title: string;
   message: string;
   confirmLabel?: string;
@@ -20,6 +21,7 @@ export class PendingChangesDialogService {
 
   readonly state = signal<PendingChangesDialogState>({
     open: false,
+    eyebrow: 'Unsaved Changes',
     title: '',
     message: '',
     confirmLabel: 'Leave without saving',
@@ -33,6 +35,7 @@ export class PendingChangesDialogService {
 
     this.state.set({
       open: true,
+      eyebrow: options.eyebrow ?? 'Unsaved Changes',
       title: options.title,
       message: options.message,
       confirmLabel: options.confirmLabel ?? 'Leave without saving',

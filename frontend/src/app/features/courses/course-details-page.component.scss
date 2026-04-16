@@ -73,6 +73,8 @@
   border-radius: 999px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 247, 238, 0.82));
   color: var(--color-ink-950);
+  cursor: pointer;
+  font: inherit;
   font-size: 0.95rem;
   font-weight: 700;
   line-height: 1;
@@ -118,6 +120,16 @@
     0 16px 34px -18px rgba(183, 79, 41, 0.72);
 }
 
+.course-details-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+  border-color: rgba(49, 65, 95, 0.12);
+  background: linear-gradient(135deg, rgba(197, 203, 214, 0.9), rgba(168, 176, 189, 0.86));
+  color: rgba(20, 31, 48, 0.78);
+  box-shadow: none;
+}
+
 .course-workspace-shell {
   width: 100%;
   margin-top: 1.5rem;
@@ -136,7 +148,7 @@
 
 .course-workspace-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: 0.75rem;
   width: 100%;
   padding: 1rem;

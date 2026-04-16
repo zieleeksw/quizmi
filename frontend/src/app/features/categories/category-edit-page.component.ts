@@ -6,7 +6,6 @@ import { Component, DestroyRef, HostListener, computed, inject, signal } from '@
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
-import { AuthService } from '../../core/auth/auth.service';
 import { CategoryDto, CategoryVersionDto } from '../../core/categories/category.models';
 import { CategoryService } from '../../core/categories/category.service';
 import { CourseDto } from '../../core/courses/course.models';
@@ -29,7 +28,6 @@ export class CategoryEditPageComponent implements PendingChangesAware {
   private readonly formBuilder = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
-  private readonly authService = inject(AuthService);
   private readonly courseService = inject(CourseService);
   private readonly categoryService = inject(CategoryService);
   private readonly pendingChangesDialog = inject(PendingChangesDialogService);
@@ -46,12 +44,7 @@ export class CategoryEditPageComponent implements PendingChangesAware {
   readonly hasSubmitted = signal(false);
   readonly serverFieldErrors = signal<Record<string, string>>({});
   readonly toasts = signal<ToastItem[]>([]);
-  readonly canManageCourse = computed(() => {
-    const currentCourse = this.course();
-    const currentUserId = this.authService.user()?.id;
-
-    return Boolean(currentCourse && currentUserId === currentCourse.ownerUserId);
-  });
+  readonly canManageCourse = computed(() => this.course()?.canManage ?? false);
 
   readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]]

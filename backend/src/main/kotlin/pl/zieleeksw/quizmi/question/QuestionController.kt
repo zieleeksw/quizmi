@@ -29,7 +29,7 @@ class QuestionController(
         @PathVariable courseId: Long
     ): List<QuestionDto> {
         val currentUser = currentUser(authentication)
-        return questionFacade.fetchQuestions(courseId, currentUser.id)
+        return questionFacade.fetchQuestionListing(courseId, currentUser.id)
     }
 
     @GetMapping("/preview")

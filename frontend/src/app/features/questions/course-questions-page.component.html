@@ -6,10 +6,11 @@
     title="Course question library"
     searchPlaceholder="Search by wording or category"
     [searchValue]="searchTerm()"
+    [searchDisabled]="!canAccessCourse()"
     [showPagination]="!isLoadingPage() && !pageLoadError() && !previewLoadError() && previewQuestions().length > 0"
     [pageLabel]="pageLabel()"
-    [previousDisabled]="!preview()?.hasPrevious"
-    [nextDisabled]="!preview()?.hasNext"
+    [previousDisabled]="!canAccessCourse() || !preview()?.hasPrevious"
+    [nextDisabled]="!canAccessCourse() || !preview()?.hasNext"
     (searchValueChange)="updateSearchTerm($event)"
     (previousClicked)="goToPreviousPage()"
     (nextClicked)="goToNextPage()"
@@ -30,12 +31,12 @@
     }
 
     <div workspace-filters class="course-questions-filter-row">
-      <button class="course-question-chip" type="button" [class.course-question-chip--active]="selectedCategoryId() === 'all'" (click)="selectCategory('all')">
+      <button class="course-question-chip" type="button" [disabled]="!canAccessCourse()" [class.course-question-chip--active]="selectedCategoryId() === 'all'" (click)="selectCategory('all')">
         All categories
       </button>
 
       @for (category of categories(); track category.id) {
-        <button class="course-question-chip" type="button" [class.course-question-chip--active]="selectedCategoryId() === category.id" (click)="selectCategory(category.id)">
+        <button class="course-question-chip" type="button" [disabled]="!canAccessCourse()" [class.course-question-chip--active]="selectedCategoryId() === category.id" (click)="selectCategory(category.id)">
           {{ category.name }}
         </button>
       }
@@ -107,7 +108,7 @@
                 </div>
               </a>
             } @else {
-              <article class="course-question-card">
+              <article class="course-question-card" [class.course-question-card--locked]="!canAccessCourse()">
                 <div class="course-question-card__top">
                   <div class="course-question-card__content">
                     <h3>{{ question.prompt }}</h3>
@@ -132,6 +133,9 @@
                   <span class="course-question-card__meta">Created {{ question.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
                   @if (isQuestionUpdated(question)) {
                     <span class="course-question-card__meta">Updated {{ question.updatedAt | date: 'd MMM yyyy, HH:mm' }}</span>
+                  }
+                  @if (!canAccessCourse()) {
+                    <span class="course-question-card__meta">Access required</span>
                   }
                 </div>
               </article>

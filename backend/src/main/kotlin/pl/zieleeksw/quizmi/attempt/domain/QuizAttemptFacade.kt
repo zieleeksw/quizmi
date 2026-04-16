@@ -29,13 +29,13 @@ class QuizAttemptFacade(
 
     @Transactional(readOnly = true)
     fun fetchCourseAttempts(courseId: Long, userId: Long): List<QuizAttemptDto> {
-        assertCourseVisibility(courseId)
+        assertCourseVisibility(courseId, userId)
         return quizAttemptRepository.findAllByCourseIdAndUserIdOrderByFinishedAtDesc(courseId, userId).map { toDto(it) }
     }
 
     @Transactional(readOnly = true)
     fun fetchAttemptDetail(courseId: Long, attemptId: Long, userId: Long): QuizAttemptDetailDto {
-        assertCourseVisibility(courseId)
+        assertCourseVisibility(courseId, userId)
         val entity = quizAttemptRepository.findByIdAndCourseIdAndUserId(attemptId, courseId, userId)
             .orElseThrow { QuizAttemptNotFoundException.forId(attemptId) }
 
@@ -44,13 +44,13 @@ class QuizAttemptFacade(
 
     @Transactional(readOnly = true)
     fun fetchCourseAttemptReviews(courseId: Long, userId: Long): List<QuizAttemptDetailDto> {
-        assertCourseVisibility(courseId)
+        assertCourseVisibility(courseId, userId)
         return quizAttemptRepository.findAllByCourseIdAndUserIdOrderByFinishedAtDesc(courseId, userId).map { toDetailDto(it) }
     }
 
     @Transactional
     fun createAttempt(courseId: Long, quizId: Long, userId: Long, answers: List<QuizAttemptAnswerRequest>): QuizAttemptDto {
-        assertCourseVisibility(courseId)
+        assertCourseVisibility(courseId, userId)
         val quiz = quizFacade.fetchQuizForCourse(courseId, quizId, userId)
         val submittedAnswers = normalizeSubmittedAnswers(answers)
         val currentQuestions = questionFacade.fetchQuestions(courseId, userId)
@@ -212,8 +212,8 @@ class QuizAttemptFacade(
         return Instant.ofEpochSecond(epochSecond, roundedMicros * 1_000L)
     }
 
-    private fun assertCourseVisibility(courseId: Long) {
-        courseFacade.fetchCourseById(courseId)
+    private fun assertCourseVisibility(courseId: Long, actorUserId: Long) {
+        courseFacade.fetchCourseForMember(courseId, actorUserId)
     }
 
     private data class AttemptQuestionSpec(

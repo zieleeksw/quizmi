@@ -8,6 +8,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pl.zieleeksw.quizmi.IntegrationTest
@@ -111,9 +112,29 @@ class QuizIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    fun `should allow non owner to browse quiz and review own statistics`() {
+    fun `should limit quiz preview for user without course access`() {
         val owner = registerAndLogin("quiz.shared.owner@quizmi.app")
         val viewer = registerAndLogin("quiz.shared.viewer@quizmi.app")
+        val courseId = createCourseAndReadId(owner.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, owner.accessToken, "Authentication")
+
+        (1..4).forEach { index ->
+            val questionId = createQuestionAndReadId(courseId, owner.accessToken, categoryId, "Which quiz preview question $index belongs to the course?")
+            createQuizAndReadId(courseId, owner.accessToken, questionId, "Quiz Preview $index")
+        }
+
+        mockMvc.perform(
+            get("/courses/{courseId}/quizzes", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(3))
+    }
+
+    @Test
+    fun `should allow active course member to browse quiz and review own statistics`() {
+        val owner = registerAndLogin("quiz.member.owner@quizmi.app")
+        val viewer = registerAndLogin("quiz.member.viewer@quizmi.app")
         val courseId = createCourseAndReadId(owner.accessToken)
         val categoryId = createCategoryAndReadId(courseId, owner.accessToken, "Authentication")
         val questionResponse = createQuestionAndReadResponse(courseId, owner.accessToken, categoryId)
@@ -123,13 +144,7 @@ class QuizIntegrationTest : IntegrationTest() {
             .map { it["id"].asLong() }
         val quizId = createQuizAndReadId(courseId, owner.accessToken, questionId)
 
-        mockMvc.perform(
-            get("/courses/{courseId}/quizzes", courseId)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
-        )
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].id").value(quizId))
+        requestAndApproveCourseJoin(courseId, viewer, owner)
 
         mockMvc.perform(
             get("/courses/{courseId}/quizzes/{quizId}", courseId, quizId)
@@ -180,6 +195,32 @@ class QuizIntegrationTest : IntegrationTest() {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.id").value(attemptId))
             .andExpect(jsonPath("$.questions[0].answeredCorrectly").value(true))
+    }
+
+    @Test
+    fun `should allow moderator to create quiz`() {
+        val owner = registerAndLogin("quiz.moderator.owner@quizmi.app")
+        val moderator = registerAndLogin("quiz.moderator.member@quizmi.app")
+        val courseId = createCourseAndReadId(owner.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, owner.accessToken, "Authentication")
+        val questionId = createQuestionAndReadId(courseId, owner.accessToken, categoryId)
+
+        requestAndApproveCourseJoin(courseId, moderator, owner)
+        promoteToModerator(courseId, moderator, owner)
+
+        mockMvc.perform(
+            post("/courses/{courseId}/quizzes", courseId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${moderator.accessToken}")
+                .content(
+                    """
+                    {"title":"Authentication mastery","mode":"manual","randomCount":null,"questionOrder":"fixed","answerOrder":"random","questionIds":[$questionId],"categoryIds":[]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.title").value("Authentication mastery"))
+            .andExpect(jsonPath("$.questionIds[0]").value(questionId))
     }
 
     @Test
@@ -235,7 +276,10 @@ class QuizIntegrationTest : IntegrationTest() {
             .response
             .contentAsString
 
-        return AuthIdentity(accessToken = loginResponse.readJsonValue("accessToken"))
+        return AuthIdentity(
+            userId = loginResponse.readJsonNumber("user", "id"),
+            accessToken = loginResponse.readJsonValue("accessToken")
+        )
     }
 
     private fun createCourseAndReadId(accessToken: String): Long {
@@ -268,18 +312,28 @@ class QuizIntegrationTest : IntegrationTest() {
         return response.readJsonNumber("id")
     }
 
-    private fun createQuestionAndReadId(courseId: Long, accessToken: String, categoryId: Long): Long {
-        return createQuestionAndReadResponse(courseId, accessToken, categoryId)["id"].asLong()
+    private fun createQuestionAndReadId(
+        courseId: Long,
+        accessToken: String,
+        categoryId: Long,
+        prompt: String = "Which controls should remain true for a secure token refresh flow?"
+    ): Long {
+        return createQuestionAndReadResponse(courseId, accessToken, categoryId, prompt)["id"].asLong()
     }
 
-    private fun createQuestionAndReadResponse(courseId: Long, accessToken: String, categoryId: Long) = objectMapper.readTree(
+    private fun createQuestionAndReadResponse(
+        courseId: Long,
+        accessToken: String,
+        categoryId: Long,
+        prompt: String = "Which controls should remain true for a secure token refresh flow?"
+    ) = objectMapper.readTree(
         mockMvc.perform(
             post("/courses/{courseId}/questions", courseId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken")
                 .content(
                     """
-                    {"prompt":"Which controls should remain true for a secure token refresh flow?","answers":[{"content":"Refresh token flow","correct":true},{"content":"Browser session binding","correct":true},{"content":"Static file serving","correct":false}],"categoryIds":[$categoryId]}
+                    {"prompt":"$prompt","answers":[{"content":"Refresh token flow","correct":true},{"content":"Browser session binding","correct":true},{"content":"Static file serving","correct":false}],"categoryIds":[$categoryId]}
                     """.trimIndent()
                 )
         )
@@ -289,14 +343,19 @@ class QuizIntegrationTest : IntegrationTest() {
             .contentAsString
     )
 
-    private fun createQuizAndReadId(courseId: Long, accessToken: String, questionId: Long): Long {
+    private fun createQuizAndReadId(
+        courseId: Long,
+        accessToken: String,
+        questionId: Long,
+        title: String = "Authentication mastery"
+    ): Long {
         val response = mockMvc.perform(
             post("/courses/{courseId}/quizzes", courseId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken")
                 .content(
                     """
-                    {"title":"Authentication mastery","mode":"manual","randomCount":null,"questionOrder":"fixed","answerOrder":"random","questionIds":[$questionId],"categoryIds":[]}
+                    {"title":"$title","mode":"manual","randomCount":null,"questionOrder":"fixed","answerOrder":"random","questionIds":[$questionId],"categoryIds":[]}
                     """.trimIndent()
                 )
         )
@@ -306,6 +365,38 @@ class QuizIntegrationTest : IntegrationTest() {
             .contentAsString
 
         return response.readJsonNumber("id")
+    }
+
+    private fun requestAndApproveCourseJoin(
+        courseId: Long,
+        requester: AuthIdentity,
+        approver: AuthIdentity
+    ) {
+        mockMvc.perform(
+            post("/courses/{courseId}/join-requests", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${requester.accessToken}")
+        )
+            .andExpect(status().isCreated)
+
+        mockMvc.perform(
+            post("/courses/{courseId}/members/{memberUserId}/approve", courseId, requester.userId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${approver.accessToken}")
+        )
+            .andExpect(status().isOk)
+    }
+
+    private fun promoteToModerator(
+        courseId: Long,
+        member: AuthIdentity,
+        owner: AuthIdentity
+    ) {
+        mockMvc.perform(
+            put("/courses/{courseId}/members/{memberUserId}/role", courseId, member.userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${owner.accessToken}")
+                .content("""{"role":"MODERATOR"}""")
+        )
+            .andExpect(status().isOk)
     }
 
     private fun String.readJsonValue(fieldName: String): String {
@@ -324,7 +415,19 @@ class QuizIntegrationTest : IntegrationTest() {
         return match.groupValues[1].toLong()
     }
 
+    private fun String.readJsonNumber(
+        objectName: String,
+        fieldName: String
+    ): Long {
+        val pattern = """"$objectName"\s*:\s*\{[^}]*"$fieldName"\s*:\s*(\d+)""".toRegex()
+        val match = pattern.find(this)
+            ?: throw IllegalStateException("Field $objectName.$fieldName was not found in response: $this")
+
+        return match.groupValues[1].toLong()
+    }
+
     private data class AuthIdentity(
+        val userId: Long,
         val accessToken: String
     )
 }

@@ -15,15 +15,27 @@ class CategoryFacade(
     private val categoryNameValidator: CategoryNameValidator
 ) {
 
+    companion object {
+        private const val PREVIEW_LIMIT = 9
+    }
+
     @Transactional(readOnly = true)
     fun fetchCategoriesForCourse(
         courseId: Long,
         actorUserId: Long
     ): List<CategoryDto> {
         assertCourseVisibility(courseId)
+        val canAccessCourse = courseFacade.hasCourseAccess(courseId, actorUserId)
 
         return categoryRepository.findAllByCourseIdOrderByNameAsc(courseId)
             .map { it.toDto() }
+            .let { categories ->
+                if (canAccessCourse) {
+                    categories
+                } else {
+                    categories.take(PREVIEW_LIMIT)
+                }
+            }
     }
 
     @Transactional(readOnly = true)
@@ -130,14 +142,14 @@ class CategoryFacade(
         courseId: Long,
         actorUserId: Long
     ) {
-        courseFacade.fetchCourseForOwner(
+        courseFacade.fetchCourseForManager(
             id = courseId,
             actorUserId = actorUserId
         )
     }
 
     private fun assertCourseVisibility(courseId: Long) {
-        courseFacade.fetchCourseById(courseId)
+        courseFacade.assertCourseExists(courseId)
     }
 
     private fun findCategoryInCourseOrThrow(

@@ -148,6 +148,11 @@
   box-shadow: 0 20px 40px -34px rgba(28, 40, 61, 0.36);
 }
 
+.course-category-card--locked {
+  opacity: 0.6;
+  filter: grayscale(0.18);
+}
+
 .course-category-card__footer {
   display: flex;
   justify-content: space-between;

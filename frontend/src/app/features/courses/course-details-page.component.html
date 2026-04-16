@@ -10,10 +10,17 @@
       <div class="course-details-hero__actions">
         <a class="course-details-link" [routerLink]="['/courses']">Back to Courses</a>
         @if (canManageCourse()) {
-        <a class="course-details-link course-details-link--primary"
-          [routerLink]="['/courses', currentCourse.id, 'edit']">
+        <a class="course-details-link course-details-link--primary" [routerLink]="['/courses', currentCourse.id, 'edit']">
           Edit Details
         </a>
+        } @else if (joinRequestPending()) {
+        <button class="course-details-link course-details-link--primary" type="button" disabled>
+          Access Requested
+        </button>
+        } @else if (canRequestJoin()) {
+        <button class="course-details-link course-details-link--primary" type="button" [disabled]="isRequestingJoin()" (click)="requestToJoin()">
+          {{ isRequestingJoin() ? 'Sending Request...' : 'Request Access' }}
+        </button>
         }
       </div>
       } @else {
@@ -30,6 +37,11 @@
       <p class="course-details-hero__description">{{ course()!.description }}</p>
       <p class="course-details-hero__owner">Owner {{ course()!.ownerEmail }}</p>
       <p class="course-details-hero__created">Created {{ course()!.createdAt | date: 'mediumDate' }}</p>
+      @if (!canAccessCourse() && !joinRequestPending()) {
+      <p class="course-details-hero__created">
+        You can preview this course, but interactions stay locked until access is granted.
+      </p>
+      }
     </div>
     }
   </section>
@@ -41,18 +53,43 @@
   } @else if (course()) {
   <section class="app-panel course-workspace-shell">
     <nav class="course-workspace-tabs" aria-label="Course workspace sections">
-      <a class="course-workspace-tab" [routerLink]="['/courses', course()!.id, 'quizzes']"
-        routerLinkActive="course-workspace-tab--active" [routerLinkActiveOptions]="{ exact: true }">
+      <a
+        class="course-workspace-tab"
+        [routerLink]="['/courses', course()!.id, 'quizzes']"
+        routerLinkActive="course-workspace-tab--active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
         Quizzes
       </a>
-      <a class="course-workspace-tab" [routerLink]="['/courses', course()!.id, 'questions']"
-        routerLinkActive="course-workspace-tab--active" [routerLinkActiveOptions]="{ exact: true }">
+      <a
+        class="course-workspace-tab"
+        [routerLink]="['/courses', course()!.id, 'questions']"
+        routerLinkActive="course-workspace-tab--active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
         Questions
       </a>
-      <a class="course-workspace-tab" [routerLink]="['/courses', course()!.id, 'categories']"
-        routerLinkActive="course-workspace-tab--active" [routerLinkActiveOptions]="{ exact: true }">
+      <a
+        class="course-workspace-tab"
+        [routerLink]="['/courses', course()!.id, 'categories']"
+        routerLinkActive="course-workspace-tab--active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
         Categories
       </a>
+      @if (canManageCourse()) {
+      <a
+        class="course-workspace-tab"
+        [routerLink]="['/courses', course()!.id, 'members']"
+        routerLinkActive="course-workspace-tab--active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        Members
+        @if (course()!.pendingRequestsCount) {
+        <span>({{ course()!.pendingRequestsCount }})</span>
+        }
+      </a>
+      }
     </nav>
 
     <div class="course-workspace-content">

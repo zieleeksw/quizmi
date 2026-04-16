@@ -1,0 +1,144 @@
+<section class="course-members-shell">
+  <app-toast-stack [toasts]="errorToasts()" (dismissed)="dismissToast($event)" />
+
+  @if (isLoading()) {
+    <article class="app-panel course-members-card">
+      <p class="app-copy">Loading course members...</p>
+    </article>
+  } @else if (!canManageCourse()) {
+    <article class="app-panel course-members-card">
+      <p class="course-members-card__title">Members are only visible to the course team.</p>
+      <p class="app-copy">Owners and moderators can review pending requests and manage member roles here.</p>
+    </article>
+  } @else {
+    <article class="app-panel course-members-card">
+      <div class="course-members-card__header">
+        <div>
+          <p class="app-eyebrow">Course Members</p>
+          <h2>People with access</h2>
+        </div>
+        @if (isRefreshing()) {
+          <p class="app-copy">Refreshing...</p>
+        }
+      </div>
+
+      @if (!membersState().members.length) {
+        <p class="app-copy">No active members yet.</p>
+      } @else {
+        <div class="course-members-list">
+          @for (member of membersState().members; track trackByMemberUserId($index, member)) {
+            <article class="course-members-row">
+              <div class="course-members-row__identity">
+                <div class="course-members-row__headline">
+                  <p class="course-members-row__email">{{ member.email }}</p>
+                  @if (isOwnerMember(member)) {
+                    <span class="course-members-badge course-members-badge--owner">Owner</span>
+                  }
+                </div>
+                <div class="course-members-row__meta">
+                  <span>Joined {{ member.createdAt | date: 'mediumDate' }}</span>
+                  @if (!isOwnerMember(member) && !canEditMemberRole(member)) {
+                    <span class="course-members-note">{{ member.role === 'MODERATOR' ? 'Moderator' : 'Member' }}</span>
+                  }
+                </div>
+              </div>
+
+              <div class="course-members-row__actions">
+                @if (canEditMemberRole(member)) {
+                  <div class="course-members-role-picker" role="group" aria-label="Member role">
+                    <button
+                      class="course-members-role-button"
+                      type="button"
+                      [class.course-members-role-button--selected]="roleValue(member) === 'MEMBER'"
+                      [disabled]="isSavingRoleChanges() || !canSelectRole(member, 'MEMBER')"
+                      (click)="selectRole(member.userId, 'MEMBER')"
+                    >
+                      Member
+                    </button>
+                    <button
+                      class="course-members-role-button"
+                      type="button"
+                      [class.course-members-role-button--selected]="roleValue(member) === 'MODERATOR'"
+                      [disabled]="isSavingRoleChanges() || !canSelectRole(member, 'MODERATOR')"
+                      (click)="selectRole(member.userId, 'MODERATOR')"
+                    >
+                      Moderator
+                    </button>
+                  </div>
+                }
+                @if (canRemoveMember(member)) {
+                  <button
+                    class="course-members-button course-members-button--danger-outline"
+                    type="button"
+                    [disabled]="isMemberActionPending(member.userId)"
+                    (click)="removeMember(member)"
+                  >
+                    {{ isMemberActionPending(member.userId) ? 'Removing...' : 'Remove access' }}
+                  </button>
+                }
+              </div>
+            </article>
+          }
+        </div>
+        @if (hasPendingRoleChanges() || canFullyManageRoles() || actorRole() === 'MODERATOR') {
+          <div class="course-members-card__footer">
+            <button
+              class="course-members-button course-members-button--primary"
+              type="button"
+              [disabled]="!hasPendingRoleChanges() || isSavingRoleChanges()"
+              (click)="saveRoleChanges()"
+            >
+              {{ isSavingRoleChanges() ? 'Saving changes...' : 'Save changes' }}
+            </button>
+          </div>
+        }
+      }
+    </article>
+
+    <article class="app-panel course-members-card">
+      <div class="course-members-card__header">
+        <div>
+          <p class="app-eyebrow">Join Requests</p>
+          <h2>Pending approvals</h2>
+        </div>
+        <span class="course-members-badge course-members-badge--count">{{ membersState().pendingRequests.length }}</span>
+      </div>
+
+      @if (!membersState().pendingRequests.length) {
+        <p class="app-copy">No pending join requests right now.</p>
+      } @else {
+        <div class="course-members-list">
+          @for (member of membersState().pendingRequests; track trackByMemberUserId($index, member)) {
+            <article class="course-members-row">
+              <div class="course-members-row__identity">
+                <p class="course-members-row__email">{{ member.email }}</p>
+                <div class="course-members-row__meta">
+                  <span>Requested {{ member.createdAt | date: 'mediumDate' }}</span>
+                </div>
+              </div>
+
+              <div class="course-members-row__actions">
+                <button
+                  class="course-members-button course-members-button--danger"
+                  type="button"
+                  [disabled]="isRequestActionPending(member.userId)"
+                  (click)="declineRequest(member.userId)"
+                >
+                  Decline
+                </button>
+                <button
+                  class="course-members-button course-members-button--success"
+                  type="button"
+                  [disabled]="isRequestActionPending(member.userId)"
+                  (click)="approveRequest(member.userId)"
+                >
+                  {{ isRequestActionPending(member.userId) ? 'Saving...' : 'Approve' }}
+                </button>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </article>
+  }
+</section>
