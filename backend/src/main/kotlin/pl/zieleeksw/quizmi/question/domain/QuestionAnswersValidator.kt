@@ -26,7 +26,7 @@ class QuestionAnswersValidator {
                 throw IllegalArgumentException("Question answer content cannot be empty.")
             }
 
-            if (answer.content.trim().length > MAX_LENGTH) {
+            if (plainTextContent.trim().length > MAX_LENGTH) {
                 throw IllegalArgumentException("Question answer content is too long. Max length is $MAX_LENGTH characters.")
             }
         }
