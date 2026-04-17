@@ -17,6 +17,7 @@ export interface QuestionDto {
   createdAt: string;
   updatedAt: string;
   prompt: string;
+  explanation: string | null;
   categories: QuestionCategoryDto[];
   answers: QuestionAnswerDto[];
 }
@@ -27,6 +28,7 @@ export interface QuestionVersionDto {
   versionNumber: number;
   createdAt: string;
   prompt: string;
+  explanation: string | null;
   categories: QuestionCategoryDto[];
   answers: QuestionAnswerDto[];
 }
@@ -43,6 +45,7 @@ export interface QuestionPageDto {
 
 export interface SaveQuestionRequest {
   prompt: string;
+  explanation: string | null;
   answers: Array<{
     content: string;
     correct: boolean;

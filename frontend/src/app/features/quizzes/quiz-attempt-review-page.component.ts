@@ -1,4 +1,5 @@
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { forkJoin } from 'rxjs';
 import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -7,6 +8,8 @@ import { AttemptService } from '../../core/attempts/attempt.service';
 import { QuizAttemptDetailDto } from '../../core/attempts/attempt.models';
 import { CourseDto } from '../../core/courses/course.models';
 import { CourseService } from '../../core/courses/course.service';
+import { QuestionDto } from '../../core/questions/question.models';
+import { QuestionService } from '../../core/questions/question.service';
 import { extractApiMessage } from '../../shared/api/api-error.utils';
 import { ToastStackComponent } from '../../shared/ui/toast-stack/toast-stack.component';
 import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
@@ -23,6 +26,7 @@ export class QuizAttemptReviewPageComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly courseService = inject(CourseService);
   private readonly attemptService = inject(AttemptService);
+  private readonly questionService = inject(QuestionService);
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private toastId = 0;
 
@@ -30,8 +34,10 @@ export class QuizAttemptReviewPageComponent {
   readonly attemptId = Number.parseInt(this.route.snapshot.paramMap.get('attemptId') ?? '', 10);
   readonly course = signal<CourseDto | null>(null);
   readonly attempt = signal<QuizAttemptDetailDto | null>(null);
+  readonly questionsById = signal<Record<number, QuestionDto>>({});
   readonly isLoading = signal(true);
   readonly toasts = signal<ToastItem[]>([]);
+  readonly expandedExplanationQuestionIds = signal<Set<number>>(new Set<number>());
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -123,6 +129,34 @@ export class QuizAttemptReviewPageComponent {
     return String.fromCharCode(65 + index);
   }
 
+  resolvedExplanation(questionId: number): string | null {
+    const reviewedQuestion = this.attempt()?.questions.find((question) => question.questionId === questionId);
+
+    if (reviewedQuestion?.explanation?.trim()) {
+      return reviewedQuestion.explanation;
+    }
+
+    return this.questionsById()[questionId]?.explanation ?? null;
+  }
+
+  isExplanationExpanded(questionId: number): boolean {
+    return this.expandedExplanationQuestionIds().has(questionId);
+  }
+
+  toggleExplanation(questionId: number): void {
+    this.expandedExplanationQuestionIds.update((current) => {
+      const next = new Set(current);
+
+      if (next.has(questionId)) {
+        next.delete(questionId);
+      } else {
+        next.add(questionId);
+      }
+
+      return next;
+    });
+  }
+
   private loadPage(): void {
     if (!Number.isFinite(this.courseId) || !Number.isFinite(this.attemptId)) {
       this.isLoading.set(false);
@@ -130,18 +164,17 @@ export class QuizAttemptReviewPageComponent {
       return;
     }
 
-    this.courseService.fetchCourse(this.courseId)
+    forkJoin({
+      course: this.courseService.fetchCourse(this.courseId),
+      attempt: this.attemptService.fetchAttemptDetail(this.courseId, this.attemptId),
+      questions: this.questionService.fetchQuestions(this.courseId)
+    })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (course) => this.course.set(course),
-        error: () => undefined
-      });
-
-    this.attemptService.fetchAttemptDetail(this.courseId, this.attemptId)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (attempt) => {
+        next: ({ course, attempt, questions }) => {
+          this.course.set(course);
           this.attempt.set(attempt);
+          this.questionsById.set(Object.fromEntries(questions.map((question) => [question.id, question])));
           this.isLoading.set(false);
         },
         error: (error) => {

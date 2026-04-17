@@ -29,6 +29,10 @@ open class QuestionVersionEntity protected constructor() {
     open lateinit var prompt: String
         protected set
 
+    @Column(length = 2000)
+    open var explanation: String? = null
+        protected set
+
     @Column(name = "created_at", nullable = false)
     open lateinit var createdAt: Instant
         protected set
@@ -37,11 +41,13 @@ open class QuestionVersionEntity protected constructor() {
         questionId: Long,
         versionNumber: Int,
         prompt: String,
+        explanation: String?,
         createdAt: Instant
     ) : this() {
         this.questionId = questionId
         this.versionNumber = versionNumber
         this.prompt = prompt
+        this.explanation = explanation
         this.createdAt = createdAt
     }
 }

@@ -27,13 +27,14 @@ class QuestionIntegrationTest : IntegrationTest() {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
                 .content(
                     """
-                    {"prompt":"Which flow returns a fresh access token to the browser?","answers":[{"content":"Refresh token flow","correct":true},{"content":"CORS preflight","correct":false}],"categoryIds":[$categoryId]}
+                    {"prompt":"Which flow returns a fresh access token to the browser?","explanation":"Use this question to reinforce how access token renewal works after the first login.","answers":[{"content":"Refresh token flow","correct":true},{"content":"CORS preflight","correct":false}],"categoryIds":[$categoryId]}
                     """.trimIndent()
                 )
         )
             .andExpect(status().isCreated)
             .andExpect(jsonPath("$.courseId").value(courseId))
             .andExpect(jsonPath("$.currentVersionNumber").value(1))
+            .andExpect(jsonPath("$.explanation").value("Use this question to reinforce how access token renewal works after the first login."))
             .andExpect(jsonPath("$.categories[0].id").value(categoryId))
             .andExpect(jsonPath("$.answers.length()").value(2))
     }
@@ -168,12 +169,13 @@ class QuestionIntegrationTest : IntegrationTest() {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
                 .content(
                     """
-                    {"prompt":"Which backend flow returns a fresh access token to the browser?","answers":[{"content":"Refresh token flow","correct":true},{"content":"CORS preflight","correct":false},{"content":"Static file serving","correct":false}],"categoryIds":[$categoryId]}
+                    {"prompt":"Which backend flow returns a fresh access token to the browser?","explanation":"This explanation should be visible on the latest version and in version history.","answers":[{"content":"Refresh token flow","correct":true},{"content":"CORS preflight","correct":false},{"content":"Static file serving","correct":false}],"categoryIds":[$categoryId]}
                     """.trimIndent()
                 )
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.currentVersionNumber").value(2))
+            .andExpect(jsonPath("$.explanation").value("This explanation should be visible on the latest version and in version history."))
 
         mockMvc.perform(
             get("/courses/{courseId}/questions/{questionId}", courseId, questionId)
@@ -181,6 +183,7 @@ class QuestionIntegrationTest : IntegrationTest() {
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.id").value(questionId))
+            .andExpect(jsonPath("$.explanation").value("This explanation should be visible on the latest version and in version history."))
             .andExpect(jsonPath("$.answers.length()").value(3))
 
         mockMvc.perform(
@@ -190,7 +193,9 @@ class QuestionIntegrationTest : IntegrationTest() {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.length()").value(2))
             .andExpect(jsonPath("$[0].versionNumber").value(2))
+            .andExpect(jsonPath("$[0].explanation").value("This explanation should be visible on the latest version and in version history."))
             .andExpect(jsonPath("$[1].versionNumber").value(1))
+            .andExpect(jsonPath("$[1].explanation").doesNotExist())
     }
 
     @Test
@@ -284,7 +289,7 @@ class QuestionIntegrationTest : IntegrationTest() {
                 )
         )
             .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.message").value("Question update must change the prompt, answers, or categories."))
+            .andExpect(jsonPath("$.message").value("Question update must change the prompt, explanation, answers, or categories."))
     }
 
     private fun registerAndLogin(email: String): AuthIdentity {

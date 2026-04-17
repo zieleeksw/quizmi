@@ -83,6 +83,7 @@ class QuestionController(
         return questionFacade.createQuestion(
             courseId = courseId,
             prompt = request.prompt ?: throw IllegalArgumentException("Question prompt cannot be empty."),
+            explanation = request.explanation,
             answers = request.answers ?: throw IllegalArgumentException("Question must contain at least 2 answers."),
             categoryIds = request.categoryIds ?: throw IllegalArgumentException("Question must contain at least 1 category."),
             actorUserId = currentUser.id
@@ -101,6 +102,7 @@ class QuestionController(
             courseId = courseId,
             questionId = questionId,
             prompt = request.prompt ?: throw IllegalArgumentException("Question prompt cannot be empty."),
+            explanation = request.explanation,
             answers = request.answers ?: throw IllegalArgumentException("Question must contain at least 2 answers."),
             categoryIds = request.categoryIds ?: throw IllegalArgumentException("Question must contain at least 1 category."),
             actorUserId = currentUser.id

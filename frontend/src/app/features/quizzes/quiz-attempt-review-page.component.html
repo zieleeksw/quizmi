@@ -64,6 +64,31 @@
           @if (reviewHint(question.questionId); as hint) {
             <p class="quiz-review-card__hint">{{ hint }}</p>
           }
+
+          @if (resolvedExplanation(question.questionId); as explanation) {
+            <div class="quiz-review-card__explanation">
+              <button
+                class="quiz-review-card__explanation-toggle"
+                type="button"
+                [attr.aria-expanded]="isExplanationExpanded(question.questionId)"
+                [attr.aria-controls]="'question-explanation-' + question.questionId"
+                (click)="toggleExplanation(question.questionId)"
+              >
+                <span class="app-eyebrow">Explanation</span>
+                <span class="quiz-review-card__explanation-icon" [class.quiz-review-card__explanation-icon--expanded]="isExplanationExpanded(question.questionId)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 9.5L12 16L19 9.5" />
+                  </svg>
+                </span>
+              </button>
+
+              @if (isExplanationExpanded(question.questionId)) {
+                <div class="quiz-review-card__explanation-body" [id]="'question-explanation-' + question.questionId">
+                  <p>{{ explanation }}</p>
+                </div>
+              }
+            </div>
+          }
         </article>
       }
     </section>

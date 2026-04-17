@@ -95,6 +95,7 @@ class QuizIntegrationTest : IntegrationTest() {
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.questions[0].answeredCorrectly").value(true))
+            .andExpect(jsonPath("$.questions[0].explanation").value("Refresh tokens should be protected by session-aware controls and never replaced by unrelated infrastructure concerns."))
             .andExpect(jsonPath("$.questions[0].selectedAnswerIds.length()").value(2))
 
         mockMvc.perform(
@@ -187,6 +188,7 @@ class QuizIntegrationTest : IntegrationTest() {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.length()").value(1))
             .andExpect(jsonPath("$[0].quizId").value(quizId))
+            .andExpect(jsonPath("$[0].questions[0].explanation").value("Refresh tokens should be protected by session-aware controls and never replaced by unrelated infrastructure concerns."))
 
         mockMvc.perform(
             get("/courses/{courseId}/attempts/{attemptId}", courseId, attemptId)
@@ -195,6 +197,7 @@ class QuizIntegrationTest : IntegrationTest() {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.id").value(attemptId))
             .andExpect(jsonPath("$.questions[0].answeredCorrectly").value(true))
+            .andExpect(jsonPath("$.questions[0].explanation").value("Refresh tokens should be protected by session-aware controls and never replaced by unrelated infrastructure concerns."))
     }
 
     @Test
@@ -333,7 +336,7 @@ class QuizIntegrationTest : IntegrationTest() {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken")
                 .content(
                     """
-                    {"prompt":"$prompt","answers":[{"content":"Refresh token flow","correct":true},{"content":"Browser session binding","correct":true},{"content":"Static file serving","correct":false}],"categoryIds":[$categoryId]}
+                    {"prompt":"$prompt","explanation":"Refresh tokens should be protected by session-aware controls and never replaced by unrelated infrastructure concerns.","answers":[{"content":"Refresh token flow","correct":true},{"content":"Browser session binding","correct":true},{"content":"Static file serving","correct":false}],"categoryIds":[$categoryId]}
                     """.trimIndent()
                 )
         )

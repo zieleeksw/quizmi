@@ -8,6 +8,7 @@ data class QuestionVersionDto(
     val versionNumber: Int,
     val createdAt: Instant,
     val prompt: String,
+    val explanation: String?,
     val categories: List<QuestionCategoryDto>,
     val answers: List<QuestionAnswerDto>
 )

@@ -36,6 +36,7 @@ export interface QuizAttemptAnswerReviewDto {
 export interface QuizAttemptQuestionReviewDto {
   questionId: number;
   prompt: string;
+  explanation: string | null;
   selectedAnswerIds: number[];
   correctAnswerIds: number[];
   answeredCorrectly: boolean;

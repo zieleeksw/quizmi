@@ -83,6 +83,9 @@
                 <div class="course-question-card__top">
                   <div class="course-question-card__content">
                     <h3>{{ question.prompt }}</h3>
+                    @if (question.explanation) {
+                      <p class="course-question-card__explanation">{{ question.explanation }}</p>
+                    }
                     <div class="course-question-card__badges">
                       @for (category of question.categories; track category.id) {
                         <span class="course-question-card__badge">{{ category.name }}</span>
@@ -112,6 +115,9 @@
                 <div class="course-question-card__top">
                   <div class="course-question-card__content">
                     <h3>{{ question.prompt }}</h3>
+                    @if (question.explanation) {
+                      <p class="course-question-card__explanation">{{ question.explanation }}</p>
+                    }
                     <div class="course-question-card__badges">
                       @for (category of question.categories; track category.id) {
                         <span class="course-question-card__badge">{{ category.name }}</span>

@@ -32,6 +32,7 @@ type AnswerFormGroup = FormGroup<{
 
 type QuestionDraftSnapshot = {
   prompt: string;
+  explanation: string | null;
   answers: AnswerDraft[];
   categoryIds: number[];
 };
@@ -77,6 +78,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
 
   readonly form = this.formBuilder.nonNullable.group({
     prompt: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(1000)]],
+    explanation: ['', [Validators.maxLength(2000)]],
     answers: this.formBuilder.nonNullable.array([
       this.createAnswerGroup(),
       this.createAnswerGroup()
@@ -188,7 +190,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
             return [...withoutCurrent, question];
           });
           this.serverFieldErrors.set({});
-          this.form.reset({ prompt: question.prompt }, { emitEvent: false });
+          this.form.reset({ prompt: question.prompt, explanation: question.explanation ?? '' }, { emitEvent: false });
           this.setAnswers(question.answers.map((answer) => ({
             content: answer.content,
             correct: answer.correct
@@ -248,6 +250,34 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
 
     if (control.errors['maxlength']) {
       return 'Question prompt cannot be longer than 1000 characters.';
+    }
+
+    return null;
+  }
+
+  hasExplanationError(): boolean {
+    if (this.serverFieldErrors()['explanation']) {
+      return true;
+    }
+
+    return this.hasSubmitted() && this.form.controls.explanation.invalid;
+  }
+
+  getExplanationError(): string | null {
+    const serverError = this.serverFieldErrors()['explanation'];
+
+    if (serverError) {
+      return serverError;
+    }
+
+    const control = this.form.controls.explanation;
+
+    if (!control.errors || !this.hasSubmitted()) {
+      return null;
+    }
+
+    if (control.errors['maxlength']) {
+      return 'Explanation cannot be longer than 2000 characters.';
     }
 
     return null;
@@ -327,7 +357,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
                 this.versions.set(versions);
 
                 if (question) {
-                  this.form.reset({ prompt: question.prompt }, { emitEvent: false });
+                  this.form.reset({ prompt: question.prompt, explanation: question.explanation ?? '' }, { emitEvent: false });
                   this.setAnswers(question.answers.map((answer) => ({
                     content: answer.content,
                     correct: answer.correct
@@ -412,6 +442,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
 
     return {
       prompt: value.prompt.trim(),
+      explanation: value.explanation.trim() || null,
       answers: value.answers.map((answer) => ({
         content: answer.content.trim(),
         correct: answer.correct
@@ -423,6 +454,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
   private createEmptyQuestionSnapshot(): QuestionDraftSnapshot {
     return {
       prompt: '',
+      explanation: null,
       answers: [
         { content: '', correct: false },
         { content: '', correct: false }
@@ -434,6 +466,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
   private createSnapshotFromQuestion(question: QuestionDto): QuestionDraftSnapshot {
     return {
       prompt: question.prompt.trim(),
+      explanation: question.explanation?.trim() || null,
       answers: question.answers
         .slice()
         .sort((left, right) => left.displayOrder - right.displayOrder)
@@ -448,6 +481,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
   private areQuestionDraftsEqual(left: QuestionDraftSnapshot, right: QuestionDraftSnapshot): boolean {
     return (
       left.prompt === right.prompt &&
+      left.explanation === right.explanation &&
       JSON.stringify(left.answers) === JSON.stringify(right.answers) &&
       JSON.stringify(left.categoryIds) === JSON.stringify(right.categoryIds)
     );
@@ -455,7 +489,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
 
   private resetComposer(): void {
     this.question.set(null);
-    this.form.reset({ prompt: '' }, { emitEvent: false });
+    this.form.reset({ prompt: '', explanation: '' }, { emitEvent: false });
     this.setAnswers([
       { content: '', correct: false },
       { content: '', correct: false }

@@ -88,6 +88,13 @@
       <p class="quiz-play-question__hint quiz-play-question__hint--correct">This question has been checked. Continue when you're ready.</p>
       }
 
+      @if (currentQuestionChecked() && question.explanation) {
+      <div class="quiz-play-question__explanation">
+        <p class="app-eyebrow">Explanation</p>
+        <p>{{ question.explanation }}</p>
+      </div>
+      }
+
       <div class="quiz-play-actions">
         <app-action-button label="Previous" [routerLink]="null" tone="secondary" [disabled]="currentIndex() === 0"
           (clicked)="goToPreviousQuestion()" />

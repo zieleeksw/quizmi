@@ -189,6 +189,12 @@
   gap: 0.7rem;
 }
 
+.course-question-card__explanation {
+  margin: 0;
+  color: var(--color-ink-500);
+  line-height: 1.6;
+}
+
 .course-question-card__badges {
   display: flex;
   flex-wrap: wrap;

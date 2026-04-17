@@ -265,6 +265,20 @@
   color: var(--color-secondary-strong);
 }
 
+.quiz-play-question__explanation {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid rgba(24, 43, 73, 0.12);
+  border-radius: 1rem;
+  background: rgba(24, 43, 73, 0.04);
+}
+
+.quiz-play-question__explanation p {
+  margin: 0;
+  line-height: 1.6;
+}
+
 .quiz-play-actions,
 .quiz-play-result__actions {
   display: flex;

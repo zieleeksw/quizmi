@@ -23,6 +23,7 @@ class QuestionFacade(
     private val categoryRepository: CategoryRepository,
     private val courseFacade: CourseFacade,
     private val questionPromptValidator: QuestionPromptValidator,
+    private val questionExplanationValidator: QuestionExplanationValidator,
     private val questionAnswersValidator: QuestionAnswersValidator,
     private val questionCategoryIdsValidator: QuestionCategoryIdsValidator
 ) {
@@ -35,6 +36,7 @@ class QuestionFacade(
     fun createQuestion(
         courseId: Long,
         prompt: String,
+        explanation: String?,
         answers: List<QuestionAnswerRequest>,
         categoryIds: List<Long>,
         actorUserId: Long
@@ -42,10 +44,12 @@ class QuestionFacade(
         assertCourseOwnership(courseId, actorUserId)
 
         val normalizedPrompt = prompt.trim()
+        val normalizedExplanation = normalizeExplanation(explanation)
         val normalizedAnswers = normalizeAnswers(answers)
         val normalizedCategoryIds = categoryIds.toList()
 
         questionPromptValidator.validate(normalizedPrompt)
+        questionExplanationValidator.validate(normalizedExplanation)
         questionAnswersValidator.validate(answers)
         questionCategoryIdsValidator.validate(normalizedCategoryIds)
         val categories = findCategoriesInCourseOrThrow(courseId, normalizedCategoryIds)
@@ -64,6 +68,7 @@ class QuestionFacade(
             questionId = savedQuestion.id!!,
             versionNumber = 1,
             prompt = normalizedPrompt,
+            explanation = normalizedExplanation,
             createdAt = now,
             answers = normalizedAnswers,
             categories = categories
@@ -176,6 +181,7 @@ class QuestionFacade(
         courseId: Long,
         questionId: Long,
         prompt: String,
+        explanation: String?,
         answers: List<QuestionAnswerRequest>,
         categoryIds: List<Long>,
         actorUserId: Long
@@ -184,10 +190,12 @@ class QuestionFacade(
 
         val question = findQuestionInCourseOrThrow(questionId, courseId)
         val normalizedPrompt = prompt.trim()
+        val normalizedExplanation = normalizeExplanation(explanation)
         val normalizedAnswers = normalizeAnswers(answers)
         val normalizedCategoryIds = categoryIds.toList()
 
         questionPromptValidator.validate(normalizedPrompt)
+        questionExplanationValidator.validate(normalizedExplanation)
         questionAnswersValidator.validate(answers)
         questionCategoryIdsValidator.validate(normalizedCategoryIds)
         val categories = findCategoriesInCourseOrThrow(courseId, normalizedCategoryIds)
@@ -196,7 +204,7 @@ class QuestionFacade(
             question.currentVersionNumber!!
         ).orElseThrow { IllegalStateException("Current question version was not found.") }
 
-        assertMeaningfulUpdate(currentVersion, normalizedPrompt, normalizedAnswers, normalizedCategoryIds)
+        assertMeaningfulUpdate(currentVersion, normalizedPrompt, normalizedExplanation, normalizedAnswers, normalizedCategoryIds)
 
         val now = Instant.now()
         question.currentVersionNumber = question.currentVersionNumber!! + 1
@@ -207,6 +215,7 @@ class QuestionFacade(
             questionId = savedQuestion.id!!,
             versionNumber = savedQuestion.currentVersionNumber!!,
             prompt = normalizedPrompt,
+            explanation = normalizedExplanation,
             createdAt = now,
             answers = normalizedAnswers,
             categories = categories
@@ -219,6 +228,7 @@ class QuestionFacade(
         questionId: Long,
         versionNumber: Int,
         prompt: String,
+        explanation: String?,
         createdAt: Instant,
         answers: List<NormalizedQuestionAnswer>,
         categories: List<CategoryEntity>
@@ -228,6 +238,7 @@ class QuestionFacade(
                 questionId = questionId,
                 versionNumber = versionNumber,
                 prompt = prompt,
+                explanation = explanation,
                 createdAt = createdAt
             )
         )
@@ -257,6 +268,7 @@ class QuestionFacade(
     private fun assertMeaningfulUpdate(
         currentVersion: QuestionVersionEntity,
         normalizedPrompt: String,
+        normalizedExplanation: String?,
         normalizedAnswers: List<NormalizedQuestionAnswer>,
         categoryIds: List<Long>
     ) {
@@ -271,8 +283,13 @@ class QuestionFacade(
         val currentCategoryIds = questionVersionCategoryRepository.findAllByQuestionVersionIdOrderByDisplayOrderAsc(currentVersion.id!!)
             .map { it.categoryId!! }
 
-        if (currentVersion.prompt == normalizedPrompt && currentAnswers == normalizedAnswers && currentCategoryIds == categoryIds) {
-            throw IllegalArgumentException("Question update must change the prompt, answers, or categories.")
+        if (
+            currentVersion.prompt == normalizedPrompt &&
+            currentVersion.explanation == normalizedExplanation &&
+            currentAnswers == normalizedAnswers &&
+            currentCategoryIds == categoryIds
+        ) {
+            throw IllegalArgumentException("Question update must change the prompt, explanation, answers, or categories.")
         }
     }
 
@@ -322,6 +339,7 @@ class QuestionFacade(
             createdAt = question.createdAt,
             updatedAt = question.updatedAt,
             prompt = currentVersion.prompt,
+            explanation = currentVersion.explanation,
             categories = findCategoryDtos(question.courseId!!, currentVersion.id!!),
             answers = findAnswerDtos(currentVersion.id!!)
         )
@@ -337,6 +355,7 @@ class QuestionFacade(
             versionNumber = version.versionNumber!!,
             createdAt = version.createdAt,
             prompt = version.prompt,
+            explanation = version.explanation,
             categories = findCategoryDtos(courseId, version.id!!),
             answers = findAnswerDtos(version.id!!)
         )
@@ -376,6 +395,10 @@ class QuestionFacade(
                 correct = answer.correct == true
             )
         }
+    }
+
+    private fun normalizeExplanation(explanation: String?): String? {
+        return explanation?.trim()?.takeIf { it.isNotEmpty() }
     }
 
     private fun matchesCategory(question: QuestionDto, categoryId: Long?): Boolean {

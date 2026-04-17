@@ -146,6 +146,7 @@ class QuizAttemptFacade(
                 ReviewQuestionSnapshot(
                     questionId = question.id,
                     prompt = question.prompt,
+                    explanation = question.explanation,
                     selectedAnswerIds = selectedAnswerIds.toList(),
                     correctAnswerIds = correctAnswerIds.toList(),
                     answeredCorrectly = selectedAnswerIds == correctAnswerIds,
@@ -185,6 +186,7 @@ class QuizAttemptFacade(
                 QuizAttemptQuestionReviewDto(
                     questionId = snapshot.questionId,
                     prompt = snapshot.prompt,
+                    explanation = snapshot.explanation,
                     selectedAnswerIds = snapshot.selectedAnswerIds,
                     correctAnswerIds = snapshot.correctAnswerIds,
                     answeredCorrectly = snapshot.answeredCorrectly,
@@ -225,6 +227,7 @@ class QuizAttemptFacade(
     private data class ReviewQuestionSnapshot(
         val questionId: Long,
         val prompt: String,
+        val explanation: String?,
         val selectedAnswerIds: List<Long>,
         val correctAnswerIds: List<Long>,
         val answeredCorrectly: Boolean,

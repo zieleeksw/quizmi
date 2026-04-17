@@ -135,6 +135,20 @@
   resize: vertical;
 }
 
+.question-editor-textarea--supporting {
+  min-height: 7.5rem;
+}
+
+.question-version-item__explanation {
+  margin: 0;
+  color: var(--color-ink-500);
+  line-height: 1.6;
+}
+
+.question-version-item__explanation {
+  font-size: 0.95rem;
+}
+
 .question-editor-answers {
   display: grid;
   gap: 0.85rem;

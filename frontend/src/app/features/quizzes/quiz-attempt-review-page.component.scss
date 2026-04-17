@@ -154,6 +154,66 @@
   font-weight: 600;
 }
 
+.quiz-review-card__explanation {
+  display: grid;
+  gap: 0.45rem;
+  border: 1px solid rgba(24, 43, 73, 0.12);
+  border-radius: 1rem;
+  background: rgba(24, 43, 73, 0.04);
+}
+
+.quiz-review-card__explanation-toggle {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.95rem 1.05rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.quiz-review-card__explanation-toggle .app-eyebrow {
+  margin: 0;
+}
+
+.quiz-review-card__explanation-icon {
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  line-height: 1;
+  transition: transform 160ms ease;
+}
+
+.quiz-review-card__explanation-icon svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.quiz-review-card__explanation-icon--expanded {
+  transform: rotate(180deg);
+}
+
+.quiz-review-card__explanation-body {
+  padding: 0 1.05rem 1rem;
+}
+
+.quiz-review-card__explanation-body p {
+  margin: 0;
+  line-height: 1.6;
+}
+
 @media (max-width: 900px) {
 
   .quiz-review-hero__topline,

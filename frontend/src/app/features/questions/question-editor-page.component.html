@@ -140,6 +140,21 @@
             }
           </div>
 
+          <div class="app-field">
+            <label for="question-explanation">Explanation</label>
+            <textarea
+              id="question-explanation"
+              class="app-input question-editor-textarea question-editor-textarea--supporting"
+              formControlName="explanation"
+              [class.app-input--invalid]="hasExplanationError()"
+              placeholder="Optional explanation shown as extra context for this question."
+            ></textarea>
+
+            @if (getExplanationError(); as explanationError) {
+              <p class="app-error-text">{{ explanationError }}</p>
+            }
+          </div>
+
           <div class="question-editor-actions">
             <app-action-button
               [label]="isEditing ? 'Save Version' : 'Create'"
@@ -176,6 +191,10 @@
                   </div>
 
                   <h3>{{ version.prompt }}</h3>
+
+                  @if (version.explanation) {
+                    <p class="question-version-item__explanation">{{ version.explanation }}</p>
+                  }
 
                   <div class="question-version-item__badges">
                     @for (category of version.categories; track category.id) {
