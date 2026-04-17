@@ -16,6 +16,8 @@ import { QuestionService } from '../../core/questions/question.service';
 import { QuizDto, QuizMode, QuizOrderMode, QuizVersionDto, SaveQuizRequest } from '../../core/quizzes/quiz.models';
 import { QuizService } from '../../core/quizzes/quiz.service';
 import { extractApiMessage } from '../../shared/api/api-error.utils';
+import { RichTextHtmlPipe } from '../../shared/rich-text/rich-text-html.pipe';
+import { extractRichTextPlainText } from '../../shared/rich-text/rich-text.utils';
 import { ActionButtonComponent } from '../../shared/ui/action-button/action-button.component';
 import { ToastStackComponent } from '../../shared/ui/toast-stack/toast-stack.component';
 import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
@@ -33,7 +35,7 @@ type QuizDraftSnapshot = {
 
 @Component({
   selector: 'app-quiz-editor-page',
-  imports: [DatePipe, ReactiveFormsModule, RouterLink, ActionButtonComponent, ToastStackComponent, WorkspaceTopbarComponent],
+  imports: [DatePipe, ReactiveFormsModule, RouterLink, ActionButtonComponent, RichTextHtmlPipe, ToastStackComponent, WorkspaceTopbarComponent],
   templateUrl: './quiz-editor-page.component.html',
   styleUrl: './quiz-editor-page.component.scss'
 })
@@ -115,7 +117,7 @@ export class QuizEditorPageComponent implements PendingChangesAware {
 
     return normalizedSearch
       ? availableQuestions.filter((question) =>
-        question.prompt.toLocaleLowerCase().includes(normalizedSearch) ||
+        extractRichTextPlainText(question.prompt).toLocaleLowerCase().includes(normalizedSearch) ||
         question.categories.some((category) => category.name.toLocaleLowerCase().includes(normalizedSearch))
       )
       : availableQuestions;

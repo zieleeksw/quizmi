@@ -274,7 +274,8 @@
   background: rgba(24, 43, 73, 0.04);
 }
 
-.quiz-play-question__explanation p {
+.quiz-play-question__explanation > p,
+.quiz-play-question__explanation > div {
   margin: 0;
   line-height: 1.6;
 }

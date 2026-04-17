@@ -209,7 +209,8 @@
   padding: 0 1.05rem 1rem;
 }
 
-.quiz-review-card__explanation-body p {
+.quiz-review-card__explanation-body > p,
+.quiz-review-card__explanation-body > div {
   margin: 0;
   line-height: 1.6;
 }

@@ -27,7 +27,7 @@
           <div class="quiz-review-card__head">
             <div>
               <p class="app-eyebrow">Question {{ index + 1 }}</p>
-              <h2>{{ question.prompt }}</h2>
+              <h2 [innerHTML]="question.prompt | richTextHtml"></h2>
             </div>
             <span class="quiz-review-card__result" [class.quiz-review-card__result--correct]="question.answeredCorrectly">
               {{ question.answeredCorrectly ? 'Correct' : 'Incorrect' }}
@@ -44,7 +44,7 @@
               >
                 <span class="quiz-review-card__letter">{{ answerLabel(answerIndex) }}</span>
                 <div class="quiz-review-card__answer-copy">
-                  <span class="quiz-review-card__answer-text">{{ answer.content }}</span>
+                  <span class="quiz-review-card__answer-text" [innerHTML]="answer.content | richTextHtml"></span>
                   @if (answerStateLabel(question.questionId, answer.id); as stateLabel) {
                     <div class="quiz-review-card__answer-badges">
                       <span
@@ -84,7 +84,7 @@
 
               @if (isExplanationExpanded(question.questionId)) {
                 <div class="quiz-review-card__explanation-body" [id]="'question-explanation-' + question.questionId">
-                  <p>{{ explanation }}</p>
+                  <div [innerHTML]="explanation | richTextHtml"></div>
                 </div>
               }
             </div>

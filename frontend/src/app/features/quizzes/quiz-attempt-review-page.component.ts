@@ -11,13 +11,15 @@ import { CourseService } from '../../core/courses/course.service';
 import { QuestionDto } from '../../core/questions/question.models';
 import { QuestionService } from '../../core/questions/question.service';
 import { extractApiMessage } from '../../shared/api/api-error.utils';
+import { RichTextHtmlPipe } from '../../shared/rich-text/rich-text-html.pipe';
+import { extractRichTextPlainText } from '../../shared/rich-text/rich-text.utils';
 import { ToastStackComponent } from '../../shared/ui/toast-stack/toast-stack.component';
 import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
 import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/workspace-topbar.component';
 
 @Component({
   selector: 'app-quiz-attempt-review-page',
-  imports: [DatePipe, RouterLink, ToastStackComponent, WorkspaceTopbarComponent],
+  imports: [DatePipe, RouterLink, RichTextHtmlPipe, ToastStackComponent, WorkspaceTopbarComponent],
   templateUrl: './quiz-attempt-review-page.component.html',
   styleUrl: './quiz-attempt-review-page.component.scss'
 })
@@ -132,8 +134,8 @@ export class QuizAttemptReviewPageComponent {
   resolvedExplanation(questionId: number): string | null {
     const reviewedQuestion = this.attempt()?.questions.find((question) => question.questionId === questionId);
 
-    if (reviewedQuestion?.explanation?.trim()) {
-      return reviewedQuestion.explanation;
+    if (extractRichTextPlainText(reviewedQuestion?.explanation).length) {
+      return reviewedQuestion?.explanation ?? null;
     }
 
     return this.questionsById()[questionId]?.explanation ?? null;

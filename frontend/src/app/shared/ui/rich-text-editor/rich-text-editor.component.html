@@ -1,0 +1,96 @@
+<div class="rich-text-editor" [class.rich-text-editor--disabled]="disabled">
+  <div class="rich-text-editor__toolbar" aria-label="Text formatting tools">
+    <div class="rich-text-editor__toolbar-main">
+      @if (toolbarLabel) {
+        <span class="rich-text-editor__toolbar-label">{{ toolbarLabel }}</span>
+      }
+
+      <button
+        type="button"
+        class="rich-text-editor__tool"
+        [class.rich-text-editor__tool--active]="boldActive"
+        [disabled]="disabled"
+        tabindex="-1"
+        (mousedown)="preserveSelection($event)"
+        (click)="applyInlineCommand('bold')"
+      >
+        B
+      </button>
+      <button
+        type="button"
+        class="rich-text-editor__tool rich-text-editor__tool--italic"
+        [class.rich-text-editor__tool--active]="italicActive"
+        [disabled]="disabled"
+        tabindex="-1"
+        (mousedown)="preserveSelection($event)"
+        (click)="applyInlineCommand('italic')"
+      >
+        I
+      </button>
+      <button
+        type="button"
+        class="rich-text-editor__tool rich-text-editor__tool--underline"
+        [class.rich-text-editor__tool--active]="underlineActive"
+        [disabled]="disabled"
+        tabindex="-1"
+        (mousedown)="preserveSelection($event)"
+        (click)="applyInlineCommand('underline')"
+      >
+        U
+      </button>
+      <div class="rich-text-editor__color-control">
+        <button
+          type="button"
+          class="rich-text-editor__tool rich-text-editor__tool--color"
+          [class.rich-text-editor__tool--active]="colorActive"
+          [style.--rich-text-selected-color]="selectedColor"
+          [disabled]="disabled"
+          [attr.aria-expanded]="isColorPaletteOpen"
+          tabindex="-1"
+          (mousedown)="preserveSelection($event)"
+          (click)="handleColorButtonClick()"
+        ></button>
+
+        @if (isColorPaletteOpen) {
+          <div class="rich-text-editor__color-palette" (mousedown)="preserveSelection($event)">
+            @for (color of presetColors; track color) {
+              <button
+                type="button"
+                class="rich-text-editor__color-option"
+                [class.rich-text-editor__color-option--active]="selectedColor === color"
+                [style.background]="color"
+                [attr.aria-label]="'Choose color ' + color"
+                tabindex="-1"
+                (mousedown)="preserveSelection($event)"
+                (click)="selectPresetColor(color, $event)"
+              ></button>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="rich-text-editor__toolbar-end">
+      <ng-content select="[richTextToolbarEnd]"></ng-content>
+    </div>
+  </div>
+
+  <div
+    #editor
+    class="rich-text-editor__surface"
+    [class.rich-text-editor__surface--disabled]="disabled"
+    [style.min-height]="minHeight"
+    [attr.aria-label]="ariaLabel"
+    [attr.data-placeholder]="placeholder"
+    [attr.contenteditable]="!disabled"
+    role="textbox"
+    aria-multiline="true"
+    (input)="handleInput()"
+    (blur)="handleBlur()"
+    (focus)="handleSelectionChange()"
+    (mouseup)="handleSelectionChange()"
+    (keyup)="handleSelectionChange()"
+    (keydown)="handleKeydown($event)"
+    (paste)="handlePaste($event)"
+  ></div>
+</div>

@@ -94,7 +94,7 @@
               <article class="quiz-editor-question-card" draggable="true" tabindex="0" role="button"
                 (click)="toggleQuestionSelection(question.id)" (keydown)="onQuestionBankKeydown(question.id, $event)"
                 (dragstart)="startDraggingQuestion(question.id, 'bank', $event)" (dragend)="endDraggingQuestion()">
-                <strong>{{ question.prompt }}</strong>
+                <strong [innerHTML]="question.prompt | richTextHtml"></strong>
                 <span>{{ questionCategoriesLabel(question) }}</span>
               </article>
               }
@@ -124,7 +124,7 @@
                   (drop)="dropQuestionAtMarker($event)">
                   <div>
                     <span class="quiz-editor-selected-item__index">{{ index + 1 }}</span>
-                    <strong>{{ selectedQuestionPrompt(questionId) }}</strong>
+                    <strong [innerHTML]="selectedQuestionPrompt(questionId) | richTextHtml"></strong>
                   </div>
 
                   <div class="quiz-editor-selected-item__actions">

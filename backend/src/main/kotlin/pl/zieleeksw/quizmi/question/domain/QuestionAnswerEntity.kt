@@ -24,7 +24,7 @@ open class QuestionAnswerEntity protected constructor() {
     open var displayOrder: Int? = null
         protected set
 
-    @Column(nullable = false, length = 300)
+    @Column(nullable = false, length = 1000)
     open lateinit var content: String
         protected set
 

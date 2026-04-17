@@ -1,6 +1,5 @@
 import { forkJoin } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
@@ -13,6 +12,7 @@ import { QuestionDto } from '../../core/questions/question.models';
 import { QuizDto } from '../../core/quizzes/quiz.models';
 import { QuizService } from '../../core/quizzes/quiz.service';
 import { extractApiMessage } from '../../shared/api/api-error.utils';
+import { RichTextHtmlPipe } from '../../shared/rich-text/rich-text-html.pipe';
 import { ToastStackComponent } from '../../shared/ui/toast-stack/toast-stack.component';
 import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
 import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/workspace-topbar.component';
@@ -37,7 +37,7 @@ export interface QuestionStat {
 
 @Component({
   selector: 'app-quiz-statistics-page',
-  imports: [DatePipe, RouterLink, ToastStackComponent, WorkspaceTopbarComponent],
+  imports: [RouterLink, RichTextHtmlPipe, ToastStackComponent, WorkspaceTopbarComponent],
   templateUrl: './quiz-statistics-page.component.html',
   styleUrl: './quiz-statistics-page.component.scss'
 })

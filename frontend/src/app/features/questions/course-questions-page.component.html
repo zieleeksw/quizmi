@@ -82,9 +82,9 @@
               <a class="course-question-card course-question-card--link" [routerLink]="link">
                 <div class="course-question-card__top">
                   <div class="course-question-card__content">
-                    <h3>{{ question.prompt }}</h3>
+                    <h3 [innerHTML]="question.prompt | richTextHtml"></h3>
                     @if (question.explanation) {
-                      <p class="course-question-card__explanation">{{ question.explanation }}</p>
+                      <div class="course-question-card__explanation" [innerHTML]="question.explanation | richTextHtml"></div>
                     }
                     <div class="course-question-card__badges">
                       @for (category of question.categories; track category.id) {
@@ -98,7 +98,7 @@
                   @for (answer of question.answers; track answer.id) {
                     <div class="course-question-card__answer" [class.course-question-card__answer--correct]="answer.correct">
                       <span>{{ answer.displayOrder + 1 }}</span>
-                      <strong>{{ answer.content }}</strong>
+                      <strong [innerHTML]="answer.content | richTextHtml"></strong>
                     </div>
                   }
                 </div>
@@ -114,9 +114,9 @@
               <article class="course-question-card" [class.course-question-card--locked]="!canAccessCourse()">
                 <div class="course-question-card__top">
                   <div class="course-question-card__content">
-                    <h3>{{ question.prompt }}</h3>
+                    <h3 [innerHTML]="question.prompt | richTextHtml"></h3>
                     @if (question.explanation) {
-                      <p class="course-question-card__explanation">{{ question.explanation }}</p>
+                      <div class="course-question-card__explanation" [innerHTML]="question.explanation | richTextHtml"></div>
                     }
                     <div class="course-question-card__badges">
                       @for (category of question.categories; track category.id) {
@@ -130,7 +130,7 @@
                   @for (answer of question.answers; track answer.id) {
                     <div class="course-question-card__answer" [class.course-question-card__answer--correct]="answer.correct">
                       <span>{{ answer.displayOrder + 1 }}</span>
-                      <strong>{{ answer.content }}</strong>
+                      <strong [innerHTML]="answer.content | richTextHtml"></strong>
                     </div>
                   }
                 </div>

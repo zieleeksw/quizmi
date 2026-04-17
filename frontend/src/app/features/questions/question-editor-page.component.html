@@ -64,14 +64,13 @@
           </div>
 
           <div class="app-field">
-            <label for="question-prompt">Question prompt</label>
-            <textarea
-              id="question-prompt"
-              class="app-input question-editor-textarea"
+            <app-rich-text-editor
               formControlName="prompt"
-              [class.app-input--invalid]="hasPromptError()"
+              [minHeight]="'10rem'"
+              ariaLabel="Question prompt editor"
+              toolbarLabel="Question prompt"
               placeholder="What should the learner answer?"
-            ></textarea>
+            ></app-rich-text-editor>
 
             @if (getPromptError(); as promptError) {
               <p class="app-error-text">{{ promptError }}</p>
@@ -88,15 +87,15 @@
             <div class="question-editor-answers" formArrayName="answers">
               @for (answerControl of answersArray().controls; track answerControl) {
                 <div class="question-editor-answer-row" [formGroupName]="$index">
-                  <div class="question-editor-answer-row__head">
-                    <label
-                      class="question-editor-answer-row__label"
-                      [for]="'question-answer-' + answerLabel($index).toLowerCase()"
-                    >
-                      Option {{ answerLabel($index) }}
-                    </label>
-
-                    <div class="question-editor-answer-row__actions">
+                  <app-rich-text-editor
+                    class="question-editor-answer-row__editor"
+                    formControlName="content"
+                    [minHeight]="'4rem'"
+                    [ariaLabel]="'Answer ' + answerLabel($index) + ' editor'"
+                    [toolbarLabel]="'Option ' + answerLabel($index)"
+                    [placeholder]="'Answer ' + answerLabel($index)"
+                  >
+                    <div class="question-editor-answer-row__actions" richTextToolbarEnd>
                       <label class="question-editor-toggle question-editor-toggle--pill" [for]="'question-answer-correct-' + answerLabel($index).toLowerCase()">
                         <input
                           class="question-editor-toggle__input"
@@ -118,14 +117,7 @@
                         Remove
                       </button>
                     </div>
-                  </div>
-
-                  <input
-                    class="app-input"
-                    [id]="'question-answer-' + answerLabel($index).toLowerCase()"
-                    formControlName="content"
-                    [placeholder]="'Answer ' + answerLabel($index)"
-                  />
+                  </app-rich-text-editor>
                 </div>
               }
             </div>
@@ -141,14 +133,13 @@
           </div>
 
           <div class="app-field">
-            <label for="question-explanation">Explanation</label>
-            <textarea
-              id="question-explanation"
-              class="app-input question-editor-textarea question-editor-textarea--supporting"
+            <label>Explanation</label>
+            <app-rich-text-editor
               formControlName="explanation"
-              [class.app-input--invalid]="hasExplanationError()"
+              [minHeight]="'7.5rem'"
+              ariaLabel="Question explanation editor"
               placeholder="Optional explanation shown as extra context for this question."
-            ></textarea>
+            ></app-rich-text-editor>
 
             @if (getExplanationError(); as explanationError) {
               <p class="app-error-text">{{ explanationError }}</p>
@@ -190,10 +181,10 @@
                     <span class="question-version-item__date">{{ version.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
                   </div>
 
-                  <h3>{{ version.prompt }}</h3>
+                  <h3 [innerHTML]="version.prompt | richTextHtml"></h3>
 
                   @if (version.explanation) {
-                    <p class="question-version-item__explanation">{{ version.explanation }}</p>
+                    <div class="question-version-item__explanation" [innerHTML]="version.explanation | richTextHtml"></div>
                   }
 
                   <div class="question-version-item__badges">
@@ -206,7 +197,7 @@
                     @for (answer of version.answers; track answer.id) {
                       <div class="question-version-item__answer" [class.question-version-item__answer--correct]="answer.correct">
                         <span>{{ answer.displayOrder + 1 }}</span>
-                        <strong>{{ answer.content }}</strong>
+                        <div class="question-version-item__answer-content" [innerHTML]="answer.content | richTextHtml"></div>
                       </div>
                     }
                   </div>

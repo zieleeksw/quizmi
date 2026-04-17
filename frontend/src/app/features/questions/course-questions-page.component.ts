@@ -11,13 +11,14 @@ import { CourseService } from '../../core/courses/course.service';
 import { QuestionDto, QuestionPageDto } from '../../core/questions/question.models';
 import { QuestionService } from '../../core/questions/question.service';
 import { extractApiMessage } from '../../shared/api/api-error.utils';
+import { RichTextHtmlPipe } from '../../shared/rich-text/rich-text-html.pipe';
 import { CourseWorkspaceSectionComponent } from '../../shared/ui/course-workspace-section/course-workspace-section.component';
 import { ToastStackComponent } from '../../shared/ui/toast-stack/toast-stack.component';
 import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
 
 @Component({
   selector: 'app-course-questions-page',
-  imports: [DatePipe, RouterLink, CourseWorkspaceSectionComponent, ToastStackComponent],
+  imports: [DatePipe, RouterLink, CourseWorkspaceSectionComponent, RichTextHtmlPipe, ToastStackComponent],
   templateUrl: './course-questions-page.component.html',
   styleUrl: './course-questions-page.component.scss'
 })

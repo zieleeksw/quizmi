@@ -93,7 +93,7 @@
           {{ q.accuracy }}%
         </div>
         <div class="quiz-statistics-question-card__info">
-          <strong>{{ q.prompt }}</strong>
+          <strong [innerHTML]="q.prompt | richTextHtml"></strong>
           <p class="app-copy">{{ q.categoryNames }} &bull; {{ q.attemptsCount }} attempts</p>
         </div>
       </article>
@@ -124,7 +124,7 @@
         <tbody>
           @for (q of questionStats(); track q.questionId) {
           <tr>
-            <td class="quiz-statistics-table__prompt">{{ q.prompt }}</td>
+            <td class="quiz-statistics-table__prompt"><span [innerHTML]="q.prompt | richTextHtml"></span></td>
             <td>{{ q.categoryNames }}</td>
             <td>{{ q.attemptsCount }}</td>
             <td>

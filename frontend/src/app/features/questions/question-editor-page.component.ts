@@ -15,7 +15,10 @@ import { CourseService } from '../../core/courses/course.service';
 import { QuestionDto, QuestionVersionDto } from '../../core/questions/question.models';
 import { QuestionService } from '../../core/questions/question.service';
 import { extractApiMessage, extractFieldErrors } from '../../shared/api/api-error.utils';
+import { RichTextHtmlPipe } from '../../shared/rich-text/rich-text-html.pipe';
+import { extractRichTextPlainText, sanitizeRichTextHtml } from '../../shared/rich-text/rich-text.utils';
 import { ActionButtonComponent } from '../../shared/ui/action-button/action-button.component';
+import { RichTextEditorComponent } from '../../shared/ui/rich-text-editor/rich-text-editor.component';
 import { ToastStackComponent } from '../../shared/ui/toast-stack/toast-stack.component';
 import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
 import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/workspace-topbar.component';
@@ -39,7 +42,7 @@ type QuestionDraftSnapshot = {
 
 @Component({
   selector: 'app-question-editor-page',
-  imports: [DatePipe, ReactiveFormsModule, RouterLink, ActionButtonComponent, ToastStackComponent, WorkspaceTopbarComponent],
+  imports: [DatePipe, ReactiveFormsModule, RouterLink, ActionButtonComponent, RichTextEditorComponent, RichTextHtmlPipe, ToastStackComponent, WorkspaceTopbarComponent],
   templateUrl: './question-editor-page.component.html',
   styleUrl: './question-editor-page.component.scss'
 })
@@ -77,7 +80,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
   readonly canManageCourse = computed(() => this.course()?.canManage ?? false);
 
   readonly form = this.formBuilder.nonNullable.group({
-    prompt: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(1000)]],
+    prompt: ['', [Validators.maxLength(1000)]],
     explanation: ['', [Validators.maxLength(2000)]],
     answers: this.formBuilder.nonNullable.array([
       this.createAnswerGroup(),
@@ -220,11 +223,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
   }
 
   hasPromptError(): boolean {
-    if (this.serverFieldErrors()['prompt']) {
-      return true;
-    }
-
-    return this.hasSubmitted() && this.form.controls.prompt.invalid;
+    return this.getPromptError() !== null;
   }
 
   getPromptError(): string | null {
@@ -234,22 +233,23 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
       return serverError;
     }
 
-    const control = this.form.controls.prompt;
-
-    if (!control.errors || !this.hasSubmitted()) {
+    if (!this.hasSubmitted()) {
       return null;
     }
 
-    if (control.errors['required']) {
+    const control = this.form.controls.prompt;
+    const plainTextLength = extractRichTextPlainText(control.getRawValue()).length;
+
+    if (!plainTextLength) {
       return 'Question prompt is required.';
     }
 
-    if (control.errors['minlength']) {
+    if (plainTextLength < 12) {
       return 'Question prompt must be at least 12 characters long.';
     }
 
-    if (control.errors['maxlength']) {
-      return 'Question prompt cannot be longer than 1000 characters.';
+    if (control.errors?.['maxlength']) {
+      return 'Question prompt cannot be longer than 1000 characters including formatting.';
     }
 
     return null;
@@ -270,14 +270,14 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
       return serverError;
     }
 
-    const control = this.form.controls.explanation;
-
-    if (!control.errors || !this.hasSubmitted()) {
+    if (!this.hasSubmitted()) {
       return null;
     }
 
-    if (control.errors['maxlength']) {
-      return 'Explanation cannot be longer than 2000 characters.';
+    const control = this.form.controls.explanation;
+
+    if (control.errors?.['maxlength']) {
+      return 'Explanation cannot be longer than 2000 characters including formatting.';
     }
 
     return null;
@@ -395,6 +395,22 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
   }
 
   private validateForm(): string | null {
+    if (!extractRichTextPlainText(this.form.controls.prompt.getRawValue()).length) {
+      return 'Question prompt is required.';
+    }
+
+    if (extractRichTextPlainText(this.form.controls.prompt.getRawValue()).length < 12) {
+      return 'Question prompt must be at least 12 characters long.';
+    }
+
+    if (this.form.controls.prompt.errors?.['maxlength']) {
+      return 'Question prompt cannot be longer than 1000 characters including formatting.';
+    }
+
+    if (this.form.controls.explanation.errors?.['maxlength']) {
+      return 'Explanation cannot be longer than 2000 characters including formatting.';
+    }
+
     if (!this.selectedCategoryIds().length) {
       return 'Choose at least one category.';
     }
@@ -405,11 +421,15 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
 
     const rawAnswers = this.answersArray().getRawValue();
 
-    if (rawAnswers.some((answer) => !answer.content.trim())) {
+    if (rawAnswers.some((answer) => !extractRichTextPlainText(answer.content).length)) {
       return 'Fill in every visible answer option.';
     }
 
-    const normalizedAnswers = rawAnswers.map((answer) => answer.content.trim().toLocaleLowerCase());
+    if (this.answersArray().controls.some((answerControl) => answerControl.controls.content.errors?.['maxlength'])) {
+      return 'Each answer cannot be longer than 1000 characters including formatting.';
+    }
+
+    const normalizedAnswers = rawAnswers.map((answer) => this.normalizeAnswerContent(answer.content));
 
     if (new Set(normalizedAnswers).size !== normalizedAnswers.length) {
       return 'Each answer must be unique.';
@@ -424,7 +444,7 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
 
   private createAnswerGroup(value: AnswerDraft = { content: '', correct: false }): AnswerFormGroup {
     return this.formBuilder.nonNullable.group({
-      content: this.formBuilder.nonNullable.control(value.content, Validators.required),
+      content: this.formBuilder.nonNullable.control(value.content, Validators.maxLength(1000)),
       correct: this.formBuilder.nonNullable.control(value.correct)
     });
   }
@@ -439,12 +459,14 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
 
   private captureQuestionDraft(): QuestionDraftSnapshot {
     const value = this.form.getRawValue();
+    const prompt = sanitizeRichTextHtml(value.prompt);
+    const explanation = sanitizeRichTextHtml(value.explanation);
 
     return {
-      prompt: value.prompt.trim(),
-      explanation: value.explanation.trim() || null,
+      prompt,
+      explanation: explanation || null,
       answers: value.answers.map((answer) => ({
-        content: answer.content.trim(),
+        content: sanitizeRichTextHtml(answer.content),
         correct: answer.correct
       })),
       categoryIds: this.selectedCategoryIds().slice().sort((left, right) => left - right)
@@ -465,13 +487,13 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
 
   private createSnapshotFromQuestion(question: QuestionDto): QuestionDraftSnapshot {
     return {
-      prompt: question.prompt.trim(),
-      explanation: question.explanation?.trim() || null,
+      prompt: sanitizeRichTextHtml(question.prompt),
+      explanation: sanitizeRichTextHtml(question.explanation) || null,
       answers: question.answers
         .slice()
         .sort((left, right) => left.displayOrder - right.displayOrder)
         .map((answer) => ({
-          content: answer.content.trim(),
+          content: sanitizeRichTextHtml(answer.content),
           correct: answer.correct
         })),
       categoryIds: question.categories.map((category) => category.id).slice().sort((left, right) => left - right)
@@ -541,6 +563,10 @@ export class QuestionEditorPageComponent implements PendingChangesAware {
   }
 
   private normalizePrompt(prompt: string): string {
-    return prompt.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+    return extractRichTextPlainText(prompt).replace(/\s+/g, ' ').toLocaleLowerCase();
+  }
+
+  private normalizeAnswerContent(content: string): string {
+    return extractRichTextPlainText(content).replace(/\s+/g, ' ').toLocaleLowerCase();
   }
 }

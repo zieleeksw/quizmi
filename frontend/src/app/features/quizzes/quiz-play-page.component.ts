@@ -12,6 +12,7 @@ import { QuestionService } from '../../core/questions/question.service';
 import { QuizDto } from '../../core/quizzes/quiz.models';
 import { QuizService } from '../../core/quizzes/quiz.service';
 import { extractApiMessage } from '../../shared/api/api-error.utils';
+import { RichTextHtmlPipe } from '../../shared/rich-text/rich-text-html.pipe';
 import { ActionButtonComponent } from '../../shared/ui/action-button/action-button.component';
 import { ToastStackComponent } from '../../shared/ui/toast-stack/toast-stack.component';
 import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
@@ -19,7 +20,7 @@ import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/works
 
 @Component({
   selector: 'app-quiz-play-page',
-  imports: [RouterLink, ActionButtonComponent, ToastStackComponent, WorkspaceTopbarComponent],
+  imports: [RouterLink, ActionButtonComponent, RichTextHtmlPipe, ToastStackComponent, WorkspaceTopbarComponent],
   templateUrl: './quiz-play-page.component.html',
   styleUrl: './quiz-play-page.component.scss'
 })

@@ -47,7 +47,7 @@
       <div class="quiz-play-question__header">
         <div>
           <p class="app-eyebrow">Question {{ currentIndex() + 1 }}</p>
-          <h2>{{ question.prompt }}</h2>
+          <h2 [innerHTML]="question.prompt | richTextHtml"></h2>
         </div>
 
         @if (questionStatusLabel(question.id); as statusLabel) {
@@ -68,7 +68,7 @@
             (change)="toggleAnswer(answer.id)" />
           <span class="quiz-play-option__letter">{{ answerLabel(index) }}</span>
           <div class="quiz-play-option__copy">
-            <span class="quiz-play-option__text">{{ answer.content }}</span>
+            <span class="quiz-play-option__text" [innerHTML]="answer.content | richTextHtml"></span>
             @if (answerStateLabel(question.id, answer.id); as stateLabel) {
             <div class="quiz-play-option__badges">
               <span class="quiz-play-option__badge" [class.quiz-play-option__badge--wrong]="isSelectedWrong(question.id, answer.id)"
@@ -91,7 +91,7 @@
       @if (currentQuestionChecked() && question.explanation) {
       <div class="quiz-play-question__explanation">
         <p class="app-eyebrow">Explanation</p>
-        <p>{{ question.explanation }}</p>
+        <div [innerHTML]="question.explanation | richTextHtml"></div>
       </div>
       }
 

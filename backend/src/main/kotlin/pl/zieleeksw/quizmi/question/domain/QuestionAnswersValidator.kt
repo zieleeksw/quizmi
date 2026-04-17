@@ -20,23 +20,42 @@ class QuestionAnswersValidator {
         }
 
         answers.forEach { answer ->
-            if (answer.content.isNullOrBlank()) {
+            val plainTextContent = extractPlainText(answer.content)
+
+            if (plainTextContent.isBlank()) {
                 throw IllegalArgumentException("Question answer content cannot be empty.")
             }
 
-            if (answer.content.trim().length > 300) {
-                throw IllegalArgumentException("Question answer content is too long. Max length is 300 characters.")
+            if (answer.content.trim().length > MAX_LENGTH) {
+                throw IllegalArgumentException("Question answer content is too long. Max length is $MAX_LENGTH characters.")
             }
         }
 
         val normalizedAnswers = answers
             .map { answer ->
-                answer.content?.trim()?.lowercase()
-                    ?: throw IllegalArgumentException("Question answer content cannot be empty.")
+                extractPlainText(answer.content).replace(Regex("\\s+"), " ").trim().lowercase()
             }
 
         if (normalizedAnswers.distinct().size != normalizedAnswers.size) {
             throw IllegalArgumentException("Question answers must be unique.")
         }
+    }
+
+    private fun extractPlainText(content: String?): String {
+        if (content.isNullOrBlank()) {
+            return ""
+        }
+
+        return content
+            .replace(BREAK_TAG_REGEX, " ")
+            .replace(HTML_TAG_REGEX, "")
+            .replace("&nbsp;", " ")
+            .trim()
+    }
+
+    companion object {
+        private const val MAX_LENGTH = 1000
+        private val BREAK_TAG_REGEX = Regex("(?i)<br\\s*/?>")
+        private val HTML_TAG_REGEX = Regex("<[^>]+>")
     }
 }
