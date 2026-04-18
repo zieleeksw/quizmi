@@ -259,6 +259,86 @@ class QuizIntegrationTest : IntegrationTest() {
             .andExpect(jsonPath("$.questions[0].answeredCorrectly").value(false))
     }
 
+    @Test
+    fun `should clear stale session answers after question update and still finish quiz`() {
+        val authentication = registerAndLogin("quiz.stale.answers@quizmi.app")
+        val courseId = createCourseAndReadId(authentication.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, authentication.accessToken, "Authentication")
+        val questionResponse = createQuestionAndReadResponse(courseId, authentication.accessToken, categoryId)
+        val questionId = questionResponse["id"].asLong()
+        val staleAnswerId = questionResponse["answers"][0]["id"].asLong()
+        val quizId = createQuizAndReadId(courseId, authentication.accessToken, questionId)
+
+        mockMvc.perform(
+            post("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content("""{}""")
+        )
+            .andExpect(status().isOk)
+
+        mockMvc.perform(
+            put("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content(
+                    """
+                    {"currentIndex":0,"answers":[{"questionId":$questionId,"answerIds":[$staleAnswerId]}]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.answers['$questionId'][0]").value(staleAnswerId))
+
+        mockMvc.perform(
+            put("/courses/{courseId}/questions/{questionId}", courseId, questionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content(
+                    """
+                    {"prompt":"Which updated controls should remain true for a secure token refresh flow?","explanation":"Updated explanation should not break active quiz sessions.","answers":[{"content":"Refresh token rotation","correct":true},{"content":"Browser session binding","correct":true},{"content":"Static file serving","correct":false}],"categoryIds":[$categoryId]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isOk)
+
+        mockMvc.perform(
+            post("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content("""{}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.answers").isEmpty())
+
+        mockMvc.perform(
+            put("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content(
+                    """
+                    {"currentIndex":0,"answers":[{"questionId":$questionId,"answerIds":[$staleAnswerId]}]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.answers").isEmpty())
+
+        mockMvc.perform(
+            post("/courses/{courseId}/quizzes/{quizId}/attempts", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content(
+                    """
+                    {"answers":[{"questionId":$questionId,"answerIds":[$staleAnswerId]}]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.correctAnswers").value(0))
+            .andExpect(jsonPath("$.totalQuestions").value(1))
+    }
+
     private fun registerAndLogin(email: String): AuthIdentity {
         val password = "password12345678"
 

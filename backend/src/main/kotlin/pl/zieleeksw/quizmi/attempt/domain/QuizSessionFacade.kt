@@ -38,6 +38,7 @@ class QuizSessionFacade(
         val quiz = quizFacade.fetchQuizForCourse(courseId, quizId, userId)
 
         return quizSessionRepository.findByCourseIdAndQuizIdAndUserId(courseId, quizId, userId)
+            .map { synchronizeSessionAnswers(it, courseId, userId) }
             .map { toDto(it) }
             .orElseGet { createSession(courseId, quiz, userId) }
     }
@@ -57,13 +58,13 @@ class QuizSessionFacade(
             .orElseThrow { QuizSessionNotFoundException.forQuizId(quizId) }
         val questionIds = deserializeQuestionIds(entity.questionIdsJson)
         val normalizedAnswers = normalizeAnswers(questionIds, answers)
-        assertAnswersBelongToQuestions(courseId, userId, normalizedAnswers)
+        val synchronizedAnswers = synchronizeAnswers(questionIds, normalizedAnswers, loadQuestionsById(courseId, userId))
 
         if (questionIds.isEmpty()) {
             throw IllegalArgumentException("Quiz session does not contain any playable questions.")
         }
 
-        entity.answersJson = serializeAnswers(normalizedAnswers)
+        entity.answersJson = serializeAnswers(synchronizedAnswers)
         entity.currentIndex = max(0, min(currentIndex, questionIds.size - 1))
         entity.updatedAt = roundToDatabasePrecision(Instant.now())
 
@@ -162,22 +163,49 @@ class QuizSessionFacade(
         return normalized
     }
 
-    private fun assertAnswersBelongToQuestions(courseId: Long, userId: Long, answers: Map<Long, List<Long>>) {
-        if (answers.isEmpty()) {
-            return
+    private fun synchronizeSessionAnswers(entity: QuizSessionEntity, courseId: Long, userId: Long): QuizSessionEntity {
+        val questionIds = deserializeQuestionIds(entity.questionIdsJson)
+        val synchronizedAnswers = synchronizeAnswers(questionIds, deserializeAnswers(entity.answersJson), loadQuestionsById(courseId, userId))
+
+        if (synchronizedAnswers == deserializeAnswers(entity.answersJson)) {
+            return entity
         }
 
-        val questionsById = questionFacade.fetchQuestions(courseId, userId).associateBy { it.id }
+        entity.answersJson = serializeAnswers(synchronizedAnswers)
+        entity.updatedAt = roundToDatabasePrecision(Instant.now())
+        return quizSessionRepository.save(entity)
+    }
 
+    private fun synchronizeAnswers(
+        questionIds: List<Long>,
+        answers: Map<Long, List<Long>>,
+        questionsById: Map<Long, QuestionDto>
+    ): Map<Long, List<Long>> {
+        if (answers.isEmpty()) {
+            return emptyMap()
+        }
+
+        val synchronized = linkedMapOf<Long, List<Long>>()
         answers.forEach { (questionId, answerIds) ->
+            if (!questionIds.contains(questionId)) {
+                return@forEach
+            }
+
             val question = questionsById[questionId]
                 ?: throw IllegalArgumentException("Quiz session contains questions outside the selected quiz.")
             val availableAnswerIds = question.answers.map { it.id }.toSet()
+            val validAnswerIds = answerIds.filter { availableAnswerIds.contains(it) }
 
-            if (!availableAnswerIds.containsAll(answerIds)) {
-                throw IllegalArgumentException("Quiz session contains answers outside the selected quiz.")
+            if (validAnswerIds.isNotEmpty()) {
+                synchronized[questionId] = validAnswerIds
             }
         }
+
+        return synchronized
+    }
+
+    private fun loadQuestionsById(courseId: Long, userId: Long): Map<Long, QuestionDto> {
+        return questionFacade.fetchQuestions(courseId, userId).associateBy { it.id }
     }
 
     private fun toDto(entity: QuizSessionEntity): QuizSessionDto {

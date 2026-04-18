@@ -64,8 +64,9 @@ class QuizAttemptFacade(
             .orElseGet { resolveQuestionSpec(quiz, currentQuestions) }
 
         assertSubmittedQuestionsMatchQuiz(submittedAnswers.keys, questionSpec)
+        val synchronizedSubmittedAnswers = synchronizeSubmittedAnswers(submittedAnswers, questionsById)
 
-        val reviewSnapshot = buildReviewSnapshot(questionSpec.orderedQuestionIds, submittedAnswers, questionsById)
+        val reviewSnapshot = buildReviewSnapshot(questionSpec.orderedQuestionIds, synchronizedSubmittedAnswers, questionsById)
         val correctAnswers = reviewSnapshot.count { it.answeredCorrectly }
         val finishedAt = roundToDatabasePrecision(Instant.now())
         val savedAttempt = quizAttemptRepository.save(
@@ -123,6 +124,25 @@ class QuizAttemptFacade(
         if (!questionSpec.allowedQuestionIds.containsAll(submittedQuestionIds)) {
             throw IllegalArgumentException("Quiz attempt contains questions outside the selected quiz.")
         }
+    }
+
+    private fun synchronizeSubmittedAnswers(
+        submittedAnswers: Map<Long, Set<Long>>,
+        questionsById: Map<Long, QuestionDto>
+    ): Map<Long, Set<Long>> {
+        if (submittedAnswers.isEmpty()) {
+            return emptyMap()
+        }
+
+        val synchronizedAnswers = linkedMapOf<Long, Set<Long>>()
+
+        submittedAnswers.forEach { (questionId, answerIds) ->
+            val question = questionsById[questionId] ?: return@forEach
+            val availableAnswerIds = question.answers.map { it.id }.toSet()
+            synchronizedAnswers[questionId] = answerIds.filter { availableAnswerIds.contains(it) }.toSet()
+        }
+
+        return synchronizedAnswers
     }
 
     private fun buildReviewSnapshot(
