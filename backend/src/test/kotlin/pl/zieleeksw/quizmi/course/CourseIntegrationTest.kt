@@ -228,7 +228,7 @@ class CourseIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    fun `should allow moderator to demote moderator to member`() {
+    fun `should forbid moderator from demoting moderator to member`() {
         val owner = registerAndLogin(email = "course.roles.demote.owner@quizmi.app")
         val moderator = registerAndLogin(email = "course.roles.demote.moderator@quizmi.app")
         val secondModerator = registerAndLogin(email = "course.roles.demote.target@quizmi.app")
@@ -249,8 +249,9 @@ class CourseIntegrationTest : IntegrationTest() {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer ${moderator.accessToken}")
                 .content("""{"role":"MEMBER"}""")
         )
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.role").value("MEMBER"))
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.exception").value("AccessDeniedException"))
+            .andExpect(jsonPath("$.message").value("Access denied."))
     }
 
     @Test
