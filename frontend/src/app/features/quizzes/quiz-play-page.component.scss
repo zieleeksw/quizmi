@@ -8,6 +8,11 @@
   padding-block: 1.5rem 2rem;
 }
 
+.quiz-play-shell > .app-panel {
+  width: 100%;
+  max-width: none;
+}
+
 .quiz-play-hero,
 .quiz-play-result,
 .quiz-play-stage {
