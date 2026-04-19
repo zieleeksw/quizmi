@@ -25,6 +25,7 @@ import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/works
   styleUrl: './quiz-play-page.component.scss'
 })
 export class QuizPlayPageComponent {
+  private readonly sessionSaveDebounceMs = 250;
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -33,6 +34,9 @@ export class QuizPlayPageComponent {
   private readonly questionService = inject(QuestionService);
   private readonly attemptService = inject(AttemptService);
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
+  private sessionSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+  private queuedSessionSave: { currentIndex: number; answers: Record<string, number[]> } | null = null;
+  private isSessionSaveInFlight = false;
   private toastId = 0;
 
   readonly courseId = Number.parseInt(this.route.snapshot.paramMap.get('courseId') ?? '', 10);
@@ -75,6 +79,10 @@ export class QuizPlayPageComponent {
     this.destroyRef.onDestroy(() => {
       for (const timeout of this.toastTimeouts.values()) {
         clearTimeout(timeout);
+      }
+
+      if (this.sessionSaveTimeout) {
+        clearTimeout(this.sessionSaveTimeout);
       }
     });
 
@@ -119,7 +127,7 @@ export class QuizPlayPageComponent {
       delete answers[question.id];
     }
 
-    this.persistSession(session.currentIndex, answers);
+    this.scheduleSessionPersist(session.currentIndex, answers);
   }
 
   openQuestion(index: number): void {
@@ -129,7 +137,7 @@ export class QuizPlayPageComponent {
       return;
     }
 
-    this.persistSession(index, { ...session.answers });
+    this.persistSessionImmediately(index, { ...session.answers });
   }
 
   goToPreviousQuestion(): void {
@@ -335,35 +343,105 @@ export class QuizPlayPageComponent {
       });
   }
 
-  private persistSession(currentIndex: number, answers: Record<string, number[]>): void {
+  private scheduleSessionPersist(currentIndex: number, answers: Record<string, number[]>): void {
+    this.updateSessionOptimistically(currentIndex, answers);
+    this.queuedSessionSave = {
+      currentIndex,
+      answers: this.cloneAnswers(answers)
+    };
+
+    if (this.sessionSaveTimeout) {
+      clearTimeout(this.sessionSaveTimeout);
+    }
+
+    this.sessionSaveTimeout = setTimeout(() => {
+      this.sessionSaveTimeout = null;
+      this.flushSessionSaveQueue();
+    }, this.sessionSaveDebounceMs);
+  }
+
+  private persistSessionImmediately(currentIndex: number, answers: Record<string, number[]>): void {
+    this.updateSessionOptimistically(currentIndex, answers);
+    this.queuedSessionSave = {
+      currentIndex,
+      answers: this.cloneAnswers(answers)
+    };
+
+    if (this.sessionSaveTimeout) {
+      clearTimeout(this.sessionSaveTimeout);
+      this.sessionSaveTimeout = null;
+    }
+
+    this.flushSessionSaveQueue();
+  }
+
+  private updateSessionOptimistically(currentIndex: number, answers: Record<string, number[]>): void {
     const session = this.session();
 
     if (!session) {
       return;
     }
 
-    this.isSaving.set(true);
     const optimisticSession: QuizSessionDto = {
       ...session,
       currentIndex,
-      answers
+      answers: this.cloneAnswers(answers)
     };
     this.session.set(optimisticSession);
+  }
+
+  private flushSessionSaveQueue(): void {
+    const session = this.session();
+
+    if (!session || !this.queuedSessionSave || this.isSessionSaveInFlight) {
+      return;
+    }
+
+    const nextSave = this.queuedSessionSave;
+    this.queuedSessionSave = null;
+    this.isSessionSaveInFlight = true;
+    this.isSaving.set(true);
 
     this.attemptService.updateSession(this.courseId, this.quizId, {
-      currentIndex,
-      answers: this.toAnswerRequests(answers)
+      currentIndex: nextSave.currentIndex,
+      answers: this.toAnswerRequests(nextSave.answers)
     })
       .pipe(
-        finalize(() => this.isSaving.set(false)),
+        finalize(() => {
+          this.isSessionSaveInFlight = false;
+
+          if (this.queuedSessionSave) {
+            this.flushSessionSaveQueue();
+            return;
+          }
+
+          this.isSaving.set(false);
+        }),
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe({
-        next: (updatedSession) => this.session.set(updatedSession),
+        next: (updatedSession) => {
+          if (this.hasQueuedSessionSave()) {
+            this.session.update((currentSession) => currentSession
+              ? {
+                ...updatedSession,
+                currentIndex: currentSession.currentIndex,
+                answers: this.cloneAnswers(currentSession.answers)
+              }
+              : updatedSession);
+            return;
+          }
+
+          this.session.set(updatedSession);
+        },
         error: (error) => {
           this.pushToast('Save failed', extractApiMessage(error) ?? 'Unable to save quiz progress right now.', 'error');
         }
       });
+  }
+
+  private hasQueuedSessionSave(): boolean {
+    return this.queuedSessionSave !== null || this.sessionSaveTimeout !== null;
   }
 
   private toAnswerRequests(answers: Record<string, number[]>): QuizAttemptAnswerRequest[] {
@@ -421,6 +499,12 @@ export class QuizPlayPageComponent {
 
     const orderedAnswerIds = new Set(orderedAnswers.map((answer) => answer.id));
     return [...orderedAnswers, ...question.answers.filter((answer) => !orderedAnswerIds.has(answer.id))];
+  }
+
+  private cloneAnswers(answers: Record<string, number[]>): Record<string, number[]> {
+    return Object.fromEntries(
+      Object.entries(answers).map(([questionId, answerIds]) => [questionId, [...answerIds]])
+    );
   }
 
   private pushToast(title: string, message: string, tone: ToastItem['tone']): void {
