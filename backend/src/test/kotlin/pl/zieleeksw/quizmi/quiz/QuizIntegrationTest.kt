@@ -12,6 +12,8 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pl.zieleeksw.quizmi.IntegrationTest
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class QuizIntegrationTest : IntegrationTest() {
 
@@ -339,6 +341,167 @@ class QuizIntegrationTest : IntegrationTest() {
             .andExpect(jsonPath("$.totalQuestions").value(1))
     }
 
+    @Test
+    fun `should persist randomized answer order across session resume and review`() {
+        val authentication = registerAndLogin("quiz.answer.order@quizmi.app")
+        val courseId = createCourseAndReadId(authentication.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, authentication.accessToken, "Authentication")
+        val questionResponse = createQuestionWithAnswersAndReadResponse(
+            courseId = courseId,
+            accessToken = authentication.accessToken,
+            categoryId = categoryId,
+            prompt = "Which controls improve the resilience of a token refresh flow?",
+            answersJson = """
+                [
+                  {"content":"Refresh token rotation","correct":true},
+                  {"content":"Browser session binding","correct":true},
+                  {"content":"Static file serving","correct":false},
+                  {"content":"Rate limiting","correct":false},
+                  {"content":"Revocation tracking","correct":true},
+                  {"content":"Image optimization","correct":false}
+                ]
+            """.trimIndent()
+        )
+        val questionId = questionResponse["id"].asLong()
+        val expectedAnswerIds = questionResponse["answers"].map { it["id"].asLong() }.toSet()
+        val quizId = createQuizAndReadId(courseId, authentication.accessToken, questionId)
+
+        val firstSession = objectMapper.readTree(
+            mockMvc.perform(
+                post("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                    .content("""{}""")
+            )
+                .andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        )
+        val firstOrder = firstSession.readAnswerOrder(questionId)
+
+        assertEquals(expectedAnswerIds, firstOrder.toSet())
+
+        val resumedSession = objectMapper.readTree(
+            mockMvc.perform(
+                post("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                    .content("""{}""")
+            )
+                .andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        )
+
+        assertEquals(firstOrder, resumedSession.readAnswerOrder(questionId))
+
+        val attemptResponse = mockMvc.perform(
+            post("/courses/{courseId}/quizzes/{quizId}/attempts", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content("""{"answers":[]}""")
+        )
+            .andExpect(status().isCreated)
+            .andReturn()
+            .response
+            .contentAsString
+
+        val attemptId = objectMapper.readTree(attemptResponse)["id"].asLong()
+        val review = objectMapper.readTree(
+            mockMvc.perform(
+                get("/courses/{courseId}/attempts/{attemptId}", courseId, attemptId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+            )
+                .andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        )
+        val reviewAnswerOrder = review["questions"][0]["answers"].map { it["id"].asLong() }
+
+        assertEquals(firstOrder, reviewAnswerOrder)
+    }
+
+    @Test
+    fun `should keep randomized answer order stable per user session and different from base order`() {
+        val owner = registerAndLogin("quiz.answer.order.owner@quizmi.app")
+        val viewer = registerAndLogin("quiz.answer.order.viewer@quizmi.app")
+        val courseId = createCourseAndReadId(owner.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, owner.accessToken, "Authentication")
+        val questionResponse = createQuestionWithAnswersAndReadResponse(
+            courseId = courseId,
+            accessToken = owner.accessToken,
+            categoryId = categoryId,
+            prompt = "Which hardening steps can support a token refresh pipeline?",
+            answersJson = """
+                [
+                  {"content":"Refresh token rotation","correct":true},
+                  {"content":"Browser session binding","correct":true},
+                  {"content":"Revocation tracking","correct":true},
+                  {"content":"Rate limiting","correct":false},
+                  {"content":"Static file serving","correct":false},
+                  {"content":"Image optimization","correct":false}
+                ]
+            """.trimIndent()
+        )
+        val questionId = questionResponse["id"].asLong()
+        val baseOrder = questionResponse["answers"].map { it["id"].asLong() }
+        val quizId = createQuizAndReadId(courseId, owner.accessToken, questionId)
+
+        requestAndApproveCourseJoin(courseId, viewer, owner)
+
+        val ownerSession = objectMapper.readTree(
+            mockMvc.perform(
+                post("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer ${owner.accessToken}")
+                    .content("""{}""")
+            )
+                .andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        )
+        val ownerResumedSession = objectMapper.readTree(
+            mockMvc.perform(
+                post("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer ${owner.accessToken}")
+                    .content("""{}""")
+            )
+                .andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        )
+        val viewerSession = objectMapper.readTree(
+            mockMvc.perform(
+                post("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer ${viewer.accessToken}")
+                    .content("""{}""")
+            )
+                .andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        )
+
+        val ownerOrder = ownerSession.readAnswerOrder(questionId)
+        val ownerResumedOrder = ownerResumedSession.readAnswerOrder(questionId)
+        val viewerOrder = viewerSession.readAnswerOrder(questionId)
+
+        assertEquals(6, ownerOrder.size)
+        assertEquals(baseOrder.toSet(), ownerOrder.toSet())
+        assertEquals(ownerOrder, ownerResumedOrder)
+        assertTrue(ownerOrder != baseOrder, "Random answer order should differ from the base display order for the owner session.")
+        assertEquals(6, viewerOrder.size)
+        assertEquals(baseOrder.toSet(), viewerOrder.toSet())
+        assertTrue(viewerOrder != baseOrder, "Random answer order should differ from the base display order for the viewer session.")
+    }
+
     private fun registerAndLogin(email: String): AuthIdentity {
         val password = "password12345678"
 
@@ -417,6 +580,29 @@ class QuizIntegrationTest : IntegrationTest() {
                 .content(
                     """
                     {"prompt":"$prompt","explanation":"Refresh tokens should be protected by session-aware controls and never replaced by unrelated infrastructure concerns.","answers":[{"content":"Refresh token flow","correct":true},{"content":"Browser session binding","correct":true},{"content":"Static file serving","correct":false}],"categoryIds":[$categoryId]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isCreated)
+            .andReturn()
+            .response
+            .contentAsString
+    )
+
+    private fun createQuestionWithAnswersAndReadResponse(
+        courseId: Long,
+        accessToken: String,
+        categoryId: Long,
+        prompt: String,
+        answersJson: String
+    ) = objectMapper.readTree(
+        mockMvc.perform(
+            post("/courses/{courseId}/questions", courseId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken")
+                .content(
+                    """
+                    {"prompt":"$prompt","explanation":"Answer ordering should stay consistent for the whole quiz attempt.","answers":$answersJson,"categoryIds":[$categoryId]}
                     """.trimIndent()
                 )
         )
@@ -513,4 +699,10 @@ class QuizIntegrationTest : IntegrationTest() {
         val userId: Long,
         val accessToken: String
     )
+
+    private fun com.fasterxml.jackson.databind.JsonNode.readAnswerOrder(questionId: Long): List<Long> {
+        val answerOrderNode = this["answerOrderByQuestion"][questionId.toString()]
+        assertTrue(answerOrderNode != null && answerOrderNode.isArray, "Expected answerOrderByQuestion for question $questionId.")
+        return answerOrderNode.map { it.asLong() }
+    }
 }

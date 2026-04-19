@@ -10,6 +10,7 @@ export interface QuizSessionDto {
   userId: number;
   quizTitle: string;
   questionIds: number[];
+  answerOrderByQuestion: Record<string, number[]>;
   currentIndex: number;
   answers: Record<string, number[]>;
   updatedAt: string;

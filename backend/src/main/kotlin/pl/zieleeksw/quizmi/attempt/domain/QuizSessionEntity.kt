@@ -41,6 +41,10 @@ open class QuizSessionEntity protected constructor() {
     open lateinit var answersJson: String
         set
 
+    @Column(name = "answer_order_json", nullable = false, columnDefinition = "TEXT")
+    open lateinit var answerOrderJson: String
+        set
+
     @Column(name = "current_index", nullable = false)
     open var currentIndex: Int? = null
         set
@@ -60,6 +64,7 @@ open class QuizSessionEntity protected constructor() {
         quizTitle: String,
         questionIdsJson: String,
         answersJson: String,
+        answerOrderJson: String,
         currentIndex: Int,
         createdAt: Instant,
         updatedAt: Instant
@@ -70,6 +75,7 @@ open class QuizSessionEntity protected constructor() {
         this.quizTitle = quizTitle
         this.questionIdsJson = questionIdsJson
         this.answersJson = answersJson
+        this.answerOrderJson = answerOrderJson
         this.currentIndex = currentIndex
         this.createdAt = createdAt
         this.updatedAt = updatedAt

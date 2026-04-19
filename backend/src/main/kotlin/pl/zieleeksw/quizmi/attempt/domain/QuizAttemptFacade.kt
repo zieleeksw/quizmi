@@ -9,11 +9,13 @@ import pl.zieleeksw.quizmi.attempt.QuizAttemptAnswerRequest
 import pl.zieleeksw.quizmi.attempt.QuizAttemptDetailDto
 import pl.zieleeksw.quizmi.attempt.QuizAttemptDto
 import pl.zieleeksw.quizmi.attempt.QuizAttemptQuestionReviewDto
+import pl.zieleeksw.quizmi.question.QuestionAnswerDto
 import pl.zieleeksw.quizmi.course.domain.CourseFacade
 import pl.zieleeksw.quizmi.question.QuestionDto
 import pl.zieleeksw.quizmi.question.domain.QuestionFacade
 import pl.zieleeksw.quizmi.quiz.QuizDto
 import pl.zieleeksw.quizmi.quiz.QuizMode
+import pl.zieleeksw.quizmi.quiz.QuizOrderMode
 import pl.zieleeksw.quizmi.quiz.domain.QuizFacade
 import java.time.Instant
 
@@ -59,14 +61,24 @@ class QuizAttemptFacade(
         val questionSpec = activeSession
             .map {
                 val sessionQuestionIds = deserializeQuestionIds(it.questionIdsJson)
-                AttemptQuestionSpec(sessionQuestionIds.toSet(), sessionQuestionIds.size, sessionQuestionIds)
+                AttemptQuestionSpec(
+                    allowedQuestionIds = sessionQuestionIds.toSet(),
+                    expectedCount = sessionQuestionIds.size,
+                    orderedQuestionIds = sessionQuestionIds,
+                    answerOrderByQuestion = deserializeAnswerOrder(it.answerOrderJson)
+                )
             }
             .orElseGet { resolveQuestionSpec(quiz, currentQuestions) }
 
         assertSubmittedQuestionsMatchQuiz(submittedAnswers.keys, questionSpec)
         val synchronizedSubmittedAnswers = synchronizeSubmittedAnswers(submittedAnswers, questionsById)
 
-        val reviewSnapshot = buildReviewSnapshot(questionSpec.orderedQuestionIds, synchronizedSubmittedAnswers, questionsById)
+        val reviewSnapshot = buildReviewSnapshot(
+            orderedQuestionIds = questionSpec.orderedQuestionIds,
+            submittedAnswers = synchronizedSubmittedAnswers,
+            questionsById = questionsById,
+            answerOrderByQuestion = questionSpec.answerOrderByQuestion
+        )
         val correctAnswers = reviewSnapshot.count { it.answeredCorrectly }
         val finishedAt = roundToDatabasePrecision(Instant.now())
         val savedAttempt = quizAttemptRepository.save(
@@ -103,10 +115,20 @@ class QuizAttemptFacade(
 
     private fun resolveQuestionSpec(quiz: QuizDto, currentQuestions: List<QuestionDto>): AttemptQuestionSpec {
         return when (quiz.mode) {
-            QuizMode.MANUAL -> AttemptQuestionSpec(quiz.questionIds.toSet(), quiz.questionIds.size, quiz.questionIds)
+            QuizMode.MANUAL -> AttemptQuestionSpec(
+                allowedQuestionIds = quiz.questionIds.toSet(),
+                expectedCount = quiz.questionIds.size,
+                orderedQuestionIds = quiz.questionIds,
+                answerOrderByQuestion = resolveAnswerOrderByQuestion(quiz, currentQuestions.associateBy { it.id }, quiz.questionIds)
+            )
             QuizMode.RANDOM -> {
                 val questionIds = currentQuestions.map { it.id }
-                AttemptQuestionSpec(questionIds.toSet(), minOf(quiz.randomCount ?: questionIds.size, questionIds.size), questionIds)
+                AttemptQuestionSpec(
+                    allowedQuestionIds = questionIds.toSet(),
+                    expectedCount = minOf(quiz.randomCount ?: questionIds.size, questionIds.size),
+                    orderedQuestionIds = questionIds,
+                    answerOrderByQuestion = resolveAnswerOrderByQuestion(quiz, currentQuestions.associateBy { it.id }, questionIds)
+                )
             }
 
             QuizMode.CATEGORY -> {
@@ -115,7 +137,13 @@ class QuizAttemptFacade(
                     .filter { question -> question.categories.any { category -> categoryIds.contains(category.id) } }
                     .map { it.id }
                 val expectedCount = minOf(quiz.randomCount ?: questionIds.size, questionIds.size)
-                AttemptQuestionSpec(questionIds.toSet(), expectedCount, questionIds.take(expectedCount))
+                val orderedQuestionIds = questionIds.take(expectedCount)
+                AttemptQuestionSpec(
+                    allowedQuestionIds = questionIds.toSet(),
+                    expectedCount = expectedCount,
+                    orderedQuestionIds = orderedQuestionIds,
+                    answerOrderByQuestion = resolveAnswerOrderByQuestion(quiz, currentQuestions.associateBy { it.id }, orderedQuestionIds)
+                )
             }
         }
     }
@@ -148,7 +176,8 @@ class QuizAttemptFacade(
     private fun buildReviewSnapshot(
         orderedQuestionIds: List<Long>,
         submittedAnswers: Map<Long, Set<Long>>,
-        questionsById: Map<Long, QuestionDto>
+        questionsById: Map<Long, QuestionDto>,
+        answerOrderByQuestion: Map<Long, List<Long>>
     ): List<ReviewQuestionSnapshot> {
         return orderedQuestionIds
             .map { questionId ->
@@ -170,11 +199,47 @@ class QuizAttemptFacade(
                     selectedAnswerIds = selectedAnswerIds.toList(),
                     correctAnswerIds = correctAnswerIds.toList(),
                     answeredCorrectly = selectedAnswerIds == correctAnswerIds,
-                    answers = question.answers.map { answer ->
+                    answers = orderAnswersForReview(question, answerOrderByQuestion[questionId]).map { answer ->
                         ReviewAnswerSnapshot(answer.id, answer.displayOrder, answer.content, answer.correct)
                     }
                 )
             }
+    }
+
+    private fun resolveAnswerOrderByQuestion(
+        quiz: QuizDto,
+        questionsById: Map<Long, QuestionDto>,
+        orderedQuestionIds: List<Long>
+    ): Map<Long, List<Long>> {
+        return orderedQuestionIds.associateWith { questionId ->
+            val question = questionsById[questionId]
+                ?: throw IllegalArgumentException("Quiz attempt contains questions outside the selected quiz.")
+            val orderedAnswers = question.answers.sortedBy { it.displayOrder }
+            val answerIds = orderedAnswers.map { it.id }
+
+            if (quiz.answerOrder == QuizOrderMode.RANDOM) {
+                randomizeOrder(answerIds)
+            } else {
+                answerIds
+            }
+        }
+    }
+
+    private fun orderAnswersForReview(question: QuestionDto, answerOrder: List<Long>?): List<QuestionAnswerDto> {
+        val answersById = question.answers.associateBy { it.id }
+        val persistedAnswerOrder = answerOrder.orEmpty()
+        val orderedAnswers = persistedAnswerOrder.mapNotNull { answerId -> answersById[answerId] }
+        val orderedAnswerIds = orderedAnswers.map { it.id }.toSet()
+        return orderedAnswers + question.answers.filterNot { orderedAnswerIds.contains(it.id) }
+    }
+
+    private fun randomizeOrder(itemIds: List<Long>): List<Long> {
+        if (itemIds.size < 2) {
+            return itemIds
+        }
+
+        val shuffled = itemIds.shuffled()
+        return if (shuffled != itemIds) shuffled else itemIds.drop(1) + itemIds.first()
     }
 
     private fun toDto(entity: QuizAttemptEntity): QuizAttemptDto {
@@ -222,6 +287,10 @@ class QuizAttemptFacade(
         return objectMapper.readValue(questionIdsJson, object : TypeReference<List<Long>>() {})
     }
 
+    private fun deserializeAnswerOrder(answerOrderJson: String): Map<Long, List<Long>> {
+        return objectMapper.readValue(answerOrderJson, object : TypeReference<Map<Long, List<Long>>>() {}) ?: emptyMap()
+    }
+
     private fun roundToDatabasePrecision(instant: Instant): Instant {
         var epochSecond = instant.epochSecond
         var roundedMicros = (instant.nano + 500L) / 1_000L
@@ -241,7 +310,8 @@ class QuizAttemptFacade(
     private data class AttemptQuestionSpec(
         val allowedQuestionIds: Set<Long>,
         val expectedCount: Int,
-        val orderedQuestionIds: List<Long>
+        val orderedQuestionIds: List<Long>,
+        val answerOrderByQuestion: Map<Long, List<Long>>
     )
 
     private data class ReviewQuestionSnapshot(

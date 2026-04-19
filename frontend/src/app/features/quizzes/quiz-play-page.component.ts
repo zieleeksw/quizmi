@@ -215,17 +215,13 @@ export class QuizPlayPageComponent {
 
   currentOptions(): QuestionDto['answers'] {
     const question = this.currentQuestion();
-    const quiz = this.quiz();
+    const session = this.session();
 
-    if (!question) {
+    if (!question || !session) {
       return [];
     }
 
-    if (quiz?.answerOrder !== 'random') {
-      return question.answers;
-    }
-
-    return [...question.answers].sort((left, right) => this.hashSeed(`${question.id}:${left.id}`) - this.hashSeed(`${question.id}:${right.id}`));
+    return this.orderAnswersForQuestion(question, session.answerOrderByQuestion[String(question.id)]);
   }
 
   primaryActionLabel(): string {
@@ -413,14 +409,18 @@ export class QuizPlayPageComponent {
       && correctAnswerIds.every((answerId) => selectedAnswerIds.has(answerId));
   }
 
-  private hashSeed(seed: string): number {
-    let hash = 0;
+  private orderAnswersForQuestion(question: QuestionDto, answerOrder: number[] | undefined): QuestionDto['answers'] {
+    const answersById = new Map(question.answers.map((answer) => [answer.id, answer]));
+    const orderedAnswers = (answerOrder ?? [])
+      .map((answerId) => answersById.get(answerId))
+      .filter((answer): answer is QuestionDto['answers'][number] => Boolean(answer));
 
-    for (let index = 0; index < seed.length; index++) {
-      hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+    if (!orderedAnswers.length) {
+      return question.answers;
     }
 
-    return hash;
+    const orderedAnswerIds = new Set(orderedAnswers.map((answer) => answer.id));
+    return [...orderedAnswers, ...question.answers.filter((answer) => !orderedAnswerIds.has(answer.id))];
   }
 
   private pushToast(title: string, message: string, tone: ToastItem['tone']): void {

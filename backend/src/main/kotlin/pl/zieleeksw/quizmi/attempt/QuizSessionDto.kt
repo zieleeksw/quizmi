@@ -9,6 +9,7 @@ data class QuizSessionDto(
     val userId: Long,
     val quizTitle: String,
     val questionIds: List<Long>,
+    val answerOrderByQuestion: Map<Long, List<Long>>,
     val currentIndex: Int,
     val answers: Map<Long, List<Long>>,
     val updatedAt: Instant
