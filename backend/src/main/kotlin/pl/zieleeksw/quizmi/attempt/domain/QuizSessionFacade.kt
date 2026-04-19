@@ -51,14 +51,13 @@ class QuizSessionFacade(
         currentIndex: Int,
         answers: List<QuizAttemptAnswerRequest>
     ): QuizSessionDto {
-        assertCourseVisibility(courseId, userId)
-        quizFacade.fetchQuizForCourse(courseId, quizId, userId)
+        quizFacade.assertActiveQuizVisible(courseId, quizId, userId)
 
         val entity = quizSessionRepository.findByCourseIdAndQuizIdAndUserId(courseId, quizId, userId)
             .orElseThrow { QuizSessionNotFoundException.forQuizId(quizId) }
         val questionIds = deserializeQuestionIds(entity.questionIdsJson)
         val normalizedAnswers = normalizeAnswers(questionIds, answers)
-        val synchronizedAnswers = synchronizeAnswers(questionIds, normalizedAnswers, loadQuestionsById(courseId, userId))
+        val synchronizedAnswers = synchronizeAnswers(questionIds, normalizedAnswers, loadQuestionsById(courseId, userId, questionIds))
 
         if (questionIds.isEmpty()) {
             throw IllegalArgumentException("Quiz session does not contain any playable questions.")
@@ -167,7 +166,7 @@ class QuizSessionFacade(
 
     private fun synchronizeSessionState(entity: QuizSessionEntity, courseId: Long, userId: Long, quiz: QuizDto): QuizSessionEntity {
         val questionIds = deserializeQuestionIds(entity.questionIdsJson)
-        val questionsById = loadQuestionsById(courseId, userId)
+        val questionsById = loadQuestionsById(courseId, userId, questionIds)
         val synchronizedAnswers = synchronizeAnswers(questionIds, deserializeAnswers(entity.answersJson), questionsById)
         val synchronizedAnswerOrder = synchronizeAnswerOrder(
             questionIds = questionIds,
@@ -275,8 +274,8 @@ class QuizSessionFacade(
         return if (shuffled != itemIds) shuffled else itemIds.drop(1) + itemIds.first()
     }
 
-    private fun loadQuestionsById(courseId: Long, userId: Long): Map<Long, QuestionDto> {
-        return questionFacade.fetchQuestions(courseId, userId).associateBy { it.id }
+    private fun loadQuestionsById(courseId: Long, userId: Long, questionIds: List<Long>): Map<Long, QuestionDto> {
+        return questionFacade.fetchQuestionsByIds(courseId, userId, questionIds).associateBy { it.id }
     }
 
     private fun toDto(entity: QuizSessionEntity): QuizSessionDto {

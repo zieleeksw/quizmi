@@ -105,6 +105,26 @@ class QuestionFacade(
     }
 
     @Transactional(readOnly = true)
+    fun fetchQuestionsByIds(
+        courseId: Long,
+        actorUserId: Long,
+        questionIds: List<Long>
+    ): List<QuestionDto> {
+        assertCourseVisibility(courseId)
+
+        if (questionIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val questionsById = questionRepository.findAllByCourseIdAndIdIn(courseId, questionIds)
+            .associateBy { it.id!! }
+
+        return questionIds.mapNotNull { questionId ->
+            questionsById[questionId]?.let(::toCurrentQuestionDto)
+        }
+    }
+
+    @Transactional(readOnly = true)
     fun fetchQuestionPreview(
         courseId: Long,
         actorUserId: Long,

@@ -91,6 +91,16 @@ class QuizFacade(
     }
 
     @Transactional(readOnly = true)
+    fun assertActiveQuizVisible(
+        courseId: Long,
+        quizId: Long,
+        actorUserId: Long
+    ) {
+        courseFacade.fetchCourseForMember(courseId, actorUserId)
+        findActiveQuizInCourseOrThrow(quizId, courseId)
+    }
+
+    @Transactional(readOnly = true)
     fun fetchQuizVersions(
         courseId: Long,
         quizId: Long,
