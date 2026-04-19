@@ -209,6 +209,8 @@
 .course-workspace-content {
   padding: 1.2rem 1.1rem 1.1rem;
   min-height: 12rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.42);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04));
   animation: workspaceFadeIn 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 

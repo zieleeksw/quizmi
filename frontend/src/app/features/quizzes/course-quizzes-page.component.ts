@@ -1,7 +1,7 @@
 import { forkJoin } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AttemptService } from '../../core/attempts/attempt.service';
 import { QuizSessionDto } from '../../core/attempts/attempt.models';
@@ -17,7 +17,7 @@ import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
 
 @Component({
   selector: 'app-course-quizzes-page',
-  imports: [CourseWorkspaceSectionComponent, ToastStackComponent],
+  imports: [RouterLink, CourseWorkspaceSectionComponent, ToastStackComponent],
   templateUrl: './course-quizzes-page.component.html',
   styleUrl: './course-quizzes-page.component.scss'
 })

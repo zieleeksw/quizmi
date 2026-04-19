@@ -16,9 +16,9 @@
     (nextClicked)="goToNextPage()"
   >
     @if (canManageCourse() && canCreateQuiz()) {
-      <button workspace-action class="course-quizzes-link course-quizzes-link--primary" type="button" (click)="createQuiz()">
+      <a workspace-action class="course-quizzes-link course-quizzes-link--primary" [routerLink]="['/courses', course()!.id, 'quizzes', 'new']">
         Create
-      </button>
+      </a>
     } @else if (canManageCourse()) {
       <div workspace-action class="course-quizzes-disabled-cta" [attr.title]="createQuizHint">
         <button class="course-quizzes-link course-quizzes-link--primary course-quizzes-link--disabled" type="button" disabled>
