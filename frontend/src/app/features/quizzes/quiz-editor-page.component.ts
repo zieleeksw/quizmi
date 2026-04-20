@@ -67,6 +67,7 @@ export class QuizEditorPageComponent implements PendingChangesAware {
   readonly draggedQuestionId = signal<number | null>(null);
   readonly draggedQuestionSource = signal<'bank' | 'selected' | null>(null);
   readonly dropTargetIndex = signal<number | null>(null);
+  readonly savedDraft = signal<QuizDraftSnapshot | null>(this.isEditing ? null : this.emptyDraft());
   readonly searchTerm = signal('');
   readonly isLoading = signal(true);
   readonly isSubmitting = signal(false);
@@ -282,6 +283,7 @@ export class QuizEditorPageComponent implements PendingChangesAware {
         next: (quiz) => {
           this.quiz.set(quiz);
           this.applyQuizToForm(quiz);
+          this.savedDraft.set(this.captureDraft());
           this.pushToast(this.isEditing ? 'Version saved' : 'Quiz created', this.isEditing ? 'A new quiz version has been saved.' : 'Quiz added to the course.', 'success');
 
           if (this.isEditing) {
@@ -298,14 +300,13 @@ export class QuizEditorPageComponent implements PendingChangesAware {
   }
 
   hasPendingChanges(): boolean {
-    const current = this.captureDraft();
+    const savedDraft = this.savedDraft();
 
-    if (!this.isEditing) {
-      return !this.areDraftsEqual(current, this.emptyDraft());
+    if (!savedDraft) {
+      return false;
     }
 
-    const quiz = this.quiz();
-    return quiz ? !this.areDraftsEqual(current, this.createDraftFromQuiz(quiz)) : false;
+    return !this.areDraftsEqual(this.captureDraft(), savedDraft);
   }
 
   confirmDiscardChanges(): Promise<boolean> {
@@ -361,6 +362,7 @@ export class QuizEditorPageComponent implements PendingChangesAware {
 
                 if (quiz) {
                   this.applyQuizToForm(quiz);
+                  this.savedDraft.set(this.captureDraft());
                 }
 
                 this.isLoading.set(false);
@@ -444,18 +446,6 @@ export class QuizEditorPageComponent implements PendingChangesAware {
       answerOrder: 'fixed',
       questionIds: [],
       categoryIds: []
-    };
-  }
-
-  private createDraftFromQuiz(quiz: QuizDto): QuizDraftSnapshot {
-    return {
-      title: quiz.title,
-      mode: quiz.mode,
-      randomCount: quiz.mode === 'random' ? quiz.randomCount : null,
-      questionOrder: quiz.questionOrder,
-      answerOrder: quiz.answerOrder,
-      questionIds: quiz.mode === 'manual' ? [...quiz.questionIds] : [],
-      categoryIds: quiz.mode === 'category' ? quiz.categories.map((category) => category.id).slice().sort((a, b) => a - b) : []
     };
   }
 
