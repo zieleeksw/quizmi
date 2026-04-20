@@ -154,7 +154,7 @@
   font-weight: 600;
 }
 
-.quiz-review-card__explanation {
+.quiz-review-card__details {
   display: grid;
   gap: 0.45rem;
   border: 1px solid rgba(24, 43, 73, 0.12);
@@ -162,7 +162,7 @@
   background: rgba(24, 43, 73, 0.04);
 }
 
-.quiz-review-card__explanation-toggle {
+.quiz-review-card__details-toggle {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
@@ -176,11 +176,11 @@
   text-align: left;
 }
 
-.quiz-review-card__explanation-toggle .app-eyebrow {
+.quiz-review-card__details-toggle .app-eyebrow {
   margin: 0;
 }
 
-.quiz-review-card__explanation-icon {
+.quiz-review-card__details-icon {
   color: inherit;
   display: inline-flex;
   align-items: center;
@@ -191,7 +191,7 @@
   transition: transform 160ms ease;
 }
 
-.quiz-review-card__explanation-icon svg {
+.quiz-review-card__details-icon svg {
   width: 100%;
   height: 100%;
   stroke: currentColor;
@@ -201,18 +201,43 @@
   fill: none;
 }
 
-.quiz-review-card__explanation-icon--expanded {
+.quiz-review-card__details-icon--expanded {
   transform: rotate(180deg);
 }
 
-.quiz-review-card__explanation-body {
+.quiz-review-card__details-body {
+  display: grid;
+  gap: 0.9rem;
   padding: 0 1.05rem 1rem;
 }
 
-.quiz-review-card__explanation-body > p,
-.quiz-review-card__explanation-body > div {
+.quiz-review-card__detail-section {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.quiz-review-card__detail-section > p,
+.quiz-review-card__detail-section > div {
   margin: 0;
   line-height: 1.6;
+}
+
+.quiz-review-card__category-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.quiz-review-card__category-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.1rem;
+  padding: 0.42rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(34, 108, 99, 0.1);
+  color: var(--color-secondary-strong);
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 @media (max-width: 900px) {

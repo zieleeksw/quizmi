@@ -65,26 +65,42 @@
             <p class="quiz-review-card__hint">{{ hint }}</p>
           }
 
-          @if (resolvedExplanation(question.questionId); as explanation) {
-            <div class="quiz-review-card__explanation">
+          @if (hasReviewDetails(question.questionId)) {
+            <div class="quiz-review-card__details">
               <button
-                class="quiz-review-card__explanation-toggle"
+                class="quiz-review-card__details-toggle"
                 type="button"
-                [attr.aria-expanded]="isExplanationExpanded(question.questionId)"
-                [attr.aria-controls]="'question-explanation-' + question.questionId"
-                (click)="toggleExplanation(question.questionId)"
+                [attr.aria-expanded]="isDetailsExpanded(question.questionId)"
+                [attr.aria-controls]="'question-details-' + question.questionId"
+                (click)="toggleDetails(question.questionId)"
               >
-                <span class="app-eyebrow">Explanation</span>
-                <span class="quiz-review-card__explanation-icon" [class.quiz-review-card__explanation-icon--expanded]="isExplanationExpanded(question.questionId)">
+                <span class="app-eyebrow">Question details</span>
+                <span class="quiz-review-card__details-icon" [class.quiz-review-card__details-icon--expanded]="isDetailsExpanded(question.questionId)">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M5 9.5L12 16L19 9.5" />
                   </svg>
                 </span>
               </button>
 
-              @if (isExplanationExpanded(question.questionId)) {
-                <div class="quiz-review-card__explanation-body" [id]="'question-explanation-' + question.questionId">
-                  <div [innerHTML]="explanation | richTextHtml"></div>
+              @if (isDetailsExpanded(question.questionId)) {
+                <div class="quiz-review-card__details-body" [id]="'question-details-' + question.questionId">
+                  @if (resolvedCategories(question.questionId).length) {
+                    <div class="quiz-review-card__detail-section">
+                      <p class="app-eyebrow">Categories</p>
+                      <div class="quiz-review-card__category-row">
+                        @for (category of resolvedCategories(question.questionId); track category.id) {
+                          <span class="quiz-review-card__category-pill">{{ category.name }}</span>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  @if (resolvedExplanation(question.questionId); as explanation) {
+                    <div class="quiz-review-card__detail-section">
+                      <p class="app-eyebrow">Explanation</p>
+                      <div [innerHTML]="explanation | richTextHtml"></div>
+                    </div>
+                  }
                 </div>
               }
             </div>

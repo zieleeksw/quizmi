@@ -39,7 +39,7 @@ export class QuizAttemptReviewPageComponent {
   readonly questionsById = signal<Record<number, QuestionDto>>({});
   readonly isLoading = signal(true);
   readonly toasts = signal<ToastItem[]>([]);
-  readonly expandedExplanationQuestionIds = signal<Set<number>>(new Set<number>());
+  readonly expandedDetailQuestionIds = signal<Set<number>>(new Set<number>());
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -141,12 +141,20 @@ export class QuizAttemptReviewPageComponent {
     return this.questionsById()[questionId]?.explanation ?? null;
   }
 
-  isExplanationExpanded(questionId: number): boolean {
-    return this.expandedExplanationQuestionIds().has(questionId);
+  resolvedCategories(questionId: number): QuestionDto['categories'] {
+    return this.questionsById()[questionId]?.categories ?? [];
   }
 
-  toggleExplanation(questionId: number): void {
-    this.expandedExplanationQuestionIds.update((current) => {
+  hasReviewDetails(questionId: number): boolean {
+    return this.resolvedCategories(questionId).length > 0 || extractRichTextPlainText(this.resolvedExplanation(questionId)).length > 0;
+  }
+
+  isDetailsExpanded(questionId: number): boolean {
+    return this.expandedDetailQuestionIds().has(questionId);
+  }
+
+  toggleDetails(questionId: number): void {
+    this.expandedDetailQuestionIds.update((current) => {
       const next = new Set(current);
 
       if (next.has(questionId)) {
