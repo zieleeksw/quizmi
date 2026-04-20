@@ -84,15 +84,13 @@ class QuestionFacade(
     ): List<QuestionDto> {
         assertCourseVisibility(courseId)
         val canAccessCourse = courseFacade.hasCourseAccess(courseId, actorUserId)
+        val questionEntities = if (canAccessCourse) {
+            questionRepository.findAllByCourseIdOrderByCreatedAtDesc(courseId)
+        } else {
+            questionRepository.findTop5ByCourseIdOrderByCreatedAtDesc(courseId)
+        }
 
-        return loadCurrentQuestions(courseId)
-            .let { questions ->
-                if (canAccessCourse) {
-                    questions
-                } else {
-                    questions.take(PREVIEW_LIMIT)
-                }
-            }
+        return loadCurrentQuestions(questionEntities)
     }
 
     @Transactional(readOnly = true)
@@ -127,10 +125,8 @@ class QuestionFacade(
 
         val questionsById = questionRepository.findAllByCourseIdAndIdIn(courseId, questionIds)
             .associateBy { it.id!! }
-
-        return questionIds.mapNotNull { questionId ->
-            questionsById[questionId]?.let(::toCurrentQuestionDto)
-        }
+        val orderedQuestions = questionIds.mapNotNull { questionId -> questionsById[questionId] }
+        return loadCurrentQuestions(orderedQuestions)
     }
 
     @Transactional(readOnly = true)
@@ -351,8 +347,74 @@ class QuestionFacade(
     }
 
     private fun loadCurrentQuestions(courseId: Long): List<QuestionDto> {
-        return questionRepository.findAllByCourseIdOrderByCreatedAtDesc(courseId)
-            .map { toCurrentQuestionDto(it) }
+        return loadCurrentQuestions(questionRepository.findAllByCourseIdOrderByCreatedAtDesc(courseId))
+    }
+
+    private fun loadCurrentQuestions(questions: List<QuestionEntity>): List<QuestionDto> {
+        if (questions.isEmpty()) {
+            return emptyList()
+        }
+
+        val questionIds = questions.mapNotNull { it.id }
+        val currentVersionsByQuestionId = questionVersionRepository.findCurrentVersionsByQuestionIds(questionIds)
+            .associateBy { it.questionId!! }
+        val currentVersions = questions.map { question ->
+            val questionId = question.id ?: throw IllegalStateException("Question id is missing.")
+            currentVersionsByQuestionId[questionId]
+                ?: throw IllegalStateException("Current question version was not found.")
+        }
+        val questionVersionIds = currentVersions.mapNotNull { it.id }
+        val categoriesByQuestionVersionId = questionVersionCategoryRepository.findAllByQuestionVersionIdInOrderByQuestionVersionIdAscDisplayOrderAsc(
+            questionVersionIds
+        ).groupBy { it.questionVersionId!! }
+        val answersByQuestionVersionId = questionAnswerRepository.findAllByQuestionVersionIdInOrderByQuestionVersionIdAscDisplayOrderAsc(
+            questionVersionIds
+        ).groupBy { it.questionVersionId!! }
+        val allCategoryIds = categoriesByQuestionVersionId.values
+            .flatten()
+            .mapNotNull { it.categoryId }
+            .distinct()
+        val categoriesById = if (allCategoryIds.isEmpty()) {
+            emptyMap()
+        } else {
+            categoryRepository.findAllByCourseIdAndIdIn(questions.first().courseId!!, allCategoryIds)
+                .associateBy { it.id!! }
+        }
+
+        return questions.map { question ->
+            val questionId = question.id ?: throw IllegalStateException("Question id is missing.")
+            val currentVersion = currentVersionsByQuestionId[questionId]
+                ?: throw IllegalStateException("Current question version was not found.")
+            val questionVersionId = currentVersion.id ?: throw IllegalStateException("Question version id is missing.")
+            val categoryDtos = categoriesByQuestionVersionId[questionVersionId]
+                .orEmpty()
+                .mapNotNull { link ->
+                    val categoryId = link.categoryId ?: return@mapNotNull null
+                    categoriesById[categoryId]?.let { QuestionCategoryDto(id = it.id!!, name = it.name) }
+                }
+            val answerDtos = answersByQuestionVersionId[questionVersionId]
+                .orEmpty()
+                .map { answer ->
+                    QuestionAnswerDto(
+                        id = answer.id!!,
+                        displayOrder = answer.displayOrder!!,
+                        content = answer.content,
+                        correct = answer.correct == true
+                    )
+                }
+
+            QuestionDto(
+                id = questionId,
+                courseId = question.courseId!!,
+                currentVersionNumber = question.currentVersionNumber!!,
+                createdAt = question.createdAt,
+                updatedAt = question.updatedAt,
+                prompt = currentVersion.prompt,
+                explanation = currentVersion.explanation,
+                categories = categoryDtos,
+                answers = answerDtos
+            )
+        }
     }
 
     private fun loadCurrentQuestionSummaries(courseId: Long): List<QuestionSummary> {
@@ -390,22 +452,7 @@ class QuestionFacade(
     }
 
     private fun toCurrentQuestionDto(question: QuestionEntity): QuestionDto {
-        val currentVersion = questionVersionRepository.findByQuestionIdAndVersionNumber(
-            question.id!!,
-            question.currentVersionNumber!!
-        ).orElseThrow { IllegalStateException("Current question version was not found.") }
-
-        return QuestionDto(
-            id = question.id!!,
-            courseId = question.courseId!!,
-            currentVersionNumber = question.currentVersionNumber!!,
-            createdAt = question.createdAt,
-            updatedAt = question.updatedAt,
-            prompt = currentVersion.prompt,
-            explanation = currentVersion.explanation,
-            categories = findCategoryDtos(question.courseId!!, currentVersion.id!!),
-            answers = findAnswerDtos(currentVersion.id!!)
-        )
+        return loadCurrentQuestions(listOf(question)).single()
     }
 
     private fun toQuestionVersionDto(

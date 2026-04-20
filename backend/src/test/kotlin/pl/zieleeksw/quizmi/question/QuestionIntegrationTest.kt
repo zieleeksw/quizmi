@@ -77,6 +77,57 @@ class QuestionIntegrationTest : IntegrationTest() {
     }
 
     @Test
+    fun `should list questions with answers and categories in created order`() {
+        val authentication = registerAndLogin("question.fetch.all.performance@quizmi.app")
+        val courseId = createCourseAndReadId(authentication.accessToken)
+        val authCategoryId = createCategoryAndReadId(courseId, authentication.accessToken, "Authentication")
+        val securityCategoryId = createCategoryAndReadId(courseId, authentication.accessToken, "Security")
+
+        mockMvc.perform(
+            post("/courses/{courseId}/questions", courseId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content(
+                    """
+                    {"prompt":"Which flow rotates an access token after login?","explanation":"Newest question should appear first.","answers":[{"content":"Refresh token flow","correct":true},{"content":"Static file serving","correct":false}],"categoryIds":[$authCategoryId,$securityCategoryId]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isCreated)
+
+        mockMvc.perform(
+            post("/courses/{courseId}/questions", courseId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content(
+                    """
+                    {"prompt":"Which browser check should stay outside token issuing?","answers":[{"content":"CORS preflight","correct":false},{"content":"Refresh token flow","correct":true}],"categoryIds":[$securityCategoryId]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isCreated)
+
+        mockMvc.perform(
+            get("/courses/{courseId}/questions", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[0].prompt").value("Which browser check should stay outside token issuing?"))
+            .andExpect(jsonPath("$[0].answers.length()").value(2))
+            .andExpect(jsonPath("$[0].answers[0].displayOrder").value(0))
+            .andExpect(jsonPath("$[0].answers[0].content").value("CORS preflight"))
+            .andExpect(jsonPath("$[0].categories.length()").value(1))
+            .andExpect(jsonPath("$[0].categories[0].id").value(securityCategoryId))
+            .andExpect(jsonPath("$[1].prompt").value("Which flow rotates an access token after login?"))
+            .andExpect(jsonPath("$[1].categories.length()").value(2))
+            .andExpect(jsonPath("$[1].categories[0].id").value(authCategoryId))
+            .andExpect(jsonPath("$[1].categories[1].id").value(securityCategoryId))
+            .andExpect(jsonPath("$[1].answers[0].content").value("Refresh token flow"))
+            .andExpect(jsonPath("$[1].answers[1].content").value("Static file serving"))
+    }
+
+    @Test
     fun `should reject locked question preview pagination and filters`() {
         val owner = registerAndLogin("question.preview.owner@quizmi.app")
         val viewer = registerAndLogin("question.preview.viewer@quizmi.app")
