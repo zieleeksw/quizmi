@@ -17,6 +17,8 @@ import { ToastStackComponent } from '../../shared/ui/toast-stack/toast-stack.com
 import { ToastItem } from '../../shared/ui/toast-stack/toast-stack.models';
 import { WorkspaceTopbarComponent } from '../../shared/ui/workspace-topbar/workspace-topbar.component';
 
+const ALL_QUESTIONS_BATCH_SIZE = 10;
+
 export interface CategoryStat {
   categoryId: number;
   categoryName: string;
@@ -60,6 +62,7 @@ export class QuizStatisticsPageComponent {
   readonly questions = signal<QuestionDto[]>([]);
   readonly isLoading = signal(true);
   readonly toasts = signal<ToastItem[]>([]);
+  readonly visibleAllQuestionsCount = signal(ALL_QUESTIONS_BATCH_SIZE);
 
   readonly quizAttempts = computed(() =>
     this.attempts()
@@ -158,6 +161,14 @@ export class QuizStatisticsPageComponent {
       .sort((a, b) => a.accuracy - b.accuracy); // Sort lowest accuracy first
   });
 
+  readonly visibleQuestionStats = computed(() =>
+    this.questionStats().slice(0, this.visibleAllQuestionsCount())
+  );
+
+  readonly remainingQuestionCount = computed(() =>
+    Math.max(this.questionStats().length - this.visibleQuestionStats().length, 0)
+  );
+
   constructor() {
     this.destroyRef.onDestroy(() => {
       for (const timeout of this.toastTimeouts.values()) {
@@ -187,6 +198,10 @@ export class QuizStatisticsPageComponent {
     return Math.round((attempt.correctAnswers / attempt.totalQuestions) * 100);
   }
 
+  showMoreQuestions(): void {
+    this.visibleAllQuestionsCount.update((count) => count + ALL_QUESTIONS_BATCH_SIZE);
+  }
+
   private loadPage(): void {
     if (!Number.isFinite(this.courseId) || !Number.isFinite(this.quizId)) {
       this.isLoading.set(false);
@@ -207,8 +222,9 @@ export class QuizStatisticsPageComponent {
           this.course.set(course);
           this.quiz.set(quiz);
           this.attempts.set(attempts);
-          this.attemptReviews.set(attemptReviews.filter(r => r.quizId === this.quizId));
+          this.attemptReviews.set(attemptReviews.filter((review) => review.quizId === this.quizId));
           this.questions.set(questions);
+          this.visibleAllQuestionsCount.set(ALL_QUESTIONS_BATCH_SIZE);
           this.isLoading.set(false);
         },
         error: (error) => {

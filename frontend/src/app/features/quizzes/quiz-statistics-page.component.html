@@ -122,7 +122,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (q of questionStats(); track q.questionId) {
+          @for (q of visibleQuestionStats(); track q.questionId) {
           <tr>
             <td class="quiz-statistics-table__prompt"><span [innerHTML]="q.prompt | richTextHtml"></span></td>
             <td>{{ q.categoryNames }}</td>
@@ -138,6 +138,14 @@
         </tbody>
       </table>
     </div>
+
+    @if (remainingQuestionCount()) {
+    <div class="quiz-statistics-question-list__actions">
+      <button class="quiz-statistics-question-list__button" type="button" (click)="showMoreQuestions()">
+        Show {{ remainingQuestionCount() }} more
+      </button>
+    </div>
+    }
     }
   </section>
   }
