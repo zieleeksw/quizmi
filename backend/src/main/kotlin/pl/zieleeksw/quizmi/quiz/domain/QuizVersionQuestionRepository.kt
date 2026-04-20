@@ -4,4 +4,5 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface QuizVersionQuestionRepository : JpaRepository<QuizVersionQuestionEntity, Long> {
     fun findAllByQuizVersionIdOrderByDisplayOrderAsc(quizVersionId: Long): List<QuizVersionQuestionEntity>
+    fun findAllByQuizVersionIdInOrderByQuizVersionIdAscDisplayOrderAsc(quizVersionIds: Collection<Long>): List<QuizVersionQuestionEntity>
 }

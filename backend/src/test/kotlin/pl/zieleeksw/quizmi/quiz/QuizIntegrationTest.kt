@@ -135,6 +135,67 @@ class QuizIntegrationTest : IntegrationTest() {
     }
 
     @Test
+    fun `should list quizzes with correct resolved counts for mixed quiz modes`() {
+        val authentication = registerAndLogin("quiz.listing.performance@quizmi.app")
+        val courseId = createCourseAndReadId(authentication.accessToken)
+        val authenticationCategoryId = createCategoryAndReadId(courseId, authentication.accessToken, "Authentication")
+        val authorizationCategoryId = createCategoryAndReadId(courseId, authentication.accessToken, "Authorization")
+        val firstQuestionId = createQuestionAndReadId(courseId, authentication.accessToken, authenticationCategoryId)
+        createQuestionAndReadId(
+            courseId = courseId,
+            accessToken = authentication.accessToken,
+            categoryId = authenticationCategoryId,
+            prompt = "Which controls improve refresh token replay resistance?"
+        )
+        createQuestionAndReadId(
+            courseId = courseId,
+            accessToken = authentication.accessToken,
+            categoryId = authorizationCategoryId,
+            prompt = "Which checks keep authorization boundaries explicit?"
+        )
+
+        createQuizAndReadId(courseId, authentication.accessToken, firstQuestionId, "Manual listing quiz")
+        createQuizAndReadResponse(
+            courseId = courseId,
+            accessToken = authentication.accessToken,
+            requestJson = """
+                {"title":"Random listing quiz","mode":"random","randomCount":2,"questionOrder":"random","answerOrder":"fixed","questionIds":[],"categoryIds":[]}
+            """.trimIndent()
+        )
+        createQuizAndReadResponse(
+            courseId = courseId,
+            accessToken = authentication.accessToken,
+            requestJson = """
+                {"title":"Category listing quiz","mode":"category","randomCount":5,"questionOrder":"fixed","answerOrder":"random","questionIds":[],"categoryIds":[$authenticationCategoryId]}
+            """.trimIndent()
+        )
+
+        val response = mockMvc.perform(
+            get("/courses/{courseId}/quizzes", courseId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(3))
+            .andReturn()
+            .response
+            .contentAsString
+
+        val quizzesByTitle = objectMapper.readTree(response).associateBy { it["title"].asText() }
+        val manualQuiz = quizzesByTitle["Manual listing quiz"]
+            ?: throw AssertionError("Manual listing quiz should be present in the response.")
+        val randomQuiz = quizzesByTitle["Random listing quiz"]
+            ?: throw AssertionError("Random listing quiz should be present in the response.")
+        val categoryQuiz = quizzesByTitle["Category listing quiz"]
+            ?: throw AssertionError("Category listing quiz should be present in the response.")
+
+        assertEquals(1, manualQuiz["resolvedQuestionCount"].asInt())
+        assertEquals(firstQuestionId, manualQuiz["questionIds"][0].asLong())
+        assertEquals(2, randomQuiz["resolvedQuestionCount"].asInt())
+        assertEquals(2, categoryQuiz["resolvedQuestionCount"].asInt())
+        assertEquals(authenticationCategoryId, categoryQuiz["categories"][0]["id"].asLong())
+    }
+
+    @Test
     fun `should allow active course member to browse quiz and review own statistics`() {
         val owner = registerAndLogin("quiz.member.owner@quizmi.app")
         val viewer = registerAndLogin("quiz.member.viewer@quizmi.app")
@@ -618,22 +679,32 @@ class QuizIntegrationTest : IntegrationTest() {
         questionId: Long,
         title: String = "Authentication mastery"
     ): Long {
-        val response = mockMvc.perform(
+        val response = createQuizAndReadResponse(
+            courseId = courseId,
+            accessToken = accessToken,
+            requestJson = """
+                {"title":"$title","mode":"manual","randomCount":null,"questionOrder":"fixed","answerOrder":"random","questionIds":[$questionId],"categoryIds":[]}
+            """.trimIndent()
+        )
+
+        return response.readJsonNumber("id")
+    }
+
+    private fun createQuizAndReadResponse(
+        courseId: Long,
+        accessToken: String,
+        requestJson: String
+    ): String {
+        return mockMvc.perform(
             post("/courses/{courseId}/quizzes", courseId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken")
-                .content(
-                    """
-                    {"title":"$title","mode":"manual","randomCount":null,"questionOrder":"fixed","answerOrder":"random","questionIds":[$questionId],"categoryIds":[]}
-                    """.trimIndent()
-                )
+                .content(requestJson)
         )
             .andExpect(status().isCreated)
             .andReturn()
             .response
             .contentAsString
-
-        return response.readJsonNumber("id")
     }
 
     private fun requestAndApproveCourseJoin(

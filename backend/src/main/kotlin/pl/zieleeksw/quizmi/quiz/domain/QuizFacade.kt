@@ -6,6 +6,7 @@ import pl.zieleeksw.quizmi.category.domain.CategoryRepository
 import pl.zieleeksw.quizmi.course.domain.CourseFacade
 import pl.zieleeksw.quizmi.question.QuestionDto
 import pl.zieleeksw.quizmi.question.domain.QuestionFacade
+import pl.zieleeksw.quizmi.question.domain.QuestionSummary
 import pl.zieleeksw.quizmi.quiz.QuizCategoryDto
 import pl.zieleeksw.quizmi.quiz.QuizDto
 import pl.zieleeksw.quizmi.quiz.QuizMode
@@ -24,10 +25,6 @@ class QuizFacade(
     private val categoryRepository: CategoryRepository,
     private val questionFacade: QuestionFacade
 ) {
-
-    companion object {
-        private const val PREVIEW_LIMIT = 3
-    }
 
     @Transactional
     fun createQuiz(
@@ -56,7 +53,7 @@ class QuizFacade(
         )
 
         saveVersion(savedQuiz.id!!, 1, draft, now)
-        return toCurrentQuizDto(savedQuiz, questions)
+        return toCurrentQuizDto(savedQuiz, toQuestionSummaries(questions))
     }
 
     @Transactional(readOnly = true)
@@ -66,17 +63,18 @@ class QuizFacade(
     ): List<QuizDto> {
         assertCourseVisibility(courseId)
         val canAccessCourse = courseFacade.hasCourseAccess(courseId, actorUserId)
-        val questions = questionFacade.fetchQuestions(courseId, actorUserId)
+        val quizzes = if (canAccessCourse) {
+            quizRepository.findAllByCourseIdAndActiveTrueOrderByCreatedAtDesc(courseId)
+        } else {
+            quizRepository.findTop3ByCourseIdAndActiveTrueOrderByCreatedAtDesc(courseId)
+        }
 
-        return quizRepository.findAllByCourseIdAndActiveTrueOrderByCreatedAtDesc(courseId)
-            .map { toCurrentQuizDto(it, questions) }
-            .let { quizzes ->
-                if (canAccessCourse) {
-                    quizzes
-                } else {
-                    quizzes.take(PREVIEW_LIMIT)
-                }
-            }
+        if (quizzes.isEmpty()) {
+            return emptyList()
+        }
+
+        val questionSummaries = questionFacade.fetchQuestionSummaries(courseId, actorUserId)
+        return toCurrentQuizDtos(quizzes, questionSummaries)
     }
 
     @Transactional(readOnly = true)
@@ -87,7 +85,7 @@ class QuizFacade(
     ): QuizDto {
         courseFacade.fetchCourseForMember(courseId, actorUserId)
         val questions = questionFacade.fetchQuestions(courseId, actorUserId)
-        return toCurrentQuizDto(findActiveQuizInCourseOrThrow(quizId, courseId), questions)
+        return toCurrentQuizDto(findActiveQuizInCourseOrThrow(quizId, courseId), toQuestionSummaries(questions))
     }
 
     @Transactional(readOnly = true)
@@ -109,9 +107,10 @@ class QuizFacade(
         assertCourseOwnership(courseId, actorUserId)
         val questions = questionFacade.fetchQuestions(courseId, actorUserId)
         val quiz = findActiveQuizInCourseOrThrow(quizId, courseId)
+        val questionSummaries = toQuestionSummaries(questions)
 
         return quizVersionRepository.findAllByQuizIdOrderByVersionNumberDesc(quiz.id!!)
-            .map { toQuizVersionDto(courseId, it, questions) }
+            .map { toQuizVersionDto(courseId, it, questionSummaries) }
     }
 
     @Transactional
@@ -142,7 +141,7 @@ class QuizFacade(
         val savedQuiz = quizRepository.save(quiz)
 
         saveVersion(savedQuiz.id!!, savedQuiz.currentVersionNumber!!, draft, now)
-        return toCurrentQuizDto(savedQuiz, questions)
+        return toCurrentQuizDto(savedQuiz, toQuestionSummaries(questions))
     }
 
     @Transactional
@@ -321,29 +320,91 @@ class QuizFacade(
         return quiz
     }
 
-    private fun toCurrentQuizDto(quiz: QuizEntity, questions: List<QuestionDto>): QuizDto {
-        val currentVersion = quizVersionRepository.findByQuizIdAndVersionNumber(quiz.id!!, quiz.currentVersionNumber!!)
-            .orElseThrow { IllegalStateException("Current quiz version was not found.") }
-
-        return QuizDto(
-            id = quiz.id!!,
-            courseId = quiz.courseId!!,
-            active = quiz.active,
-            currentVersionNumber = quiz.currentVersionNumber!!,
-            createdAt = quiz.createdAt,
-            updatedAt = quiz.updatedAt,
-            title = currentVersion.title,
-            mode = currentVersion.mode!!,
-            randomCount = currentVersion.randomCount,
-            questionOrder = currentVersion.questionOrder!!,
-            answerOrder = currentVersion.answerOrder!!,
-            questionIds = quizVersionQuestionRepository.findAllByQuizVersionIdOrderByDisplayOrderAsc(currentVersion.id!!).map { it.questionId!! },
-            categories = findCategoryDtos(quiz.courseId!!, currentVersion.id!!),
-            resolvedQuestionCount = resolveQuestionCount(currentVersion, questions)
-        )
+    private fun toCurrentQuizDto(
+        quiz: QuizEntity,
+        questionSummaries: List<QuestionSummary>
+    ): QuizDto {
+        return toCurrentQuizDtos(listOf(quiz), questionSummaries).single()
     }
 
-    private fun toQuizVersionDto(courseId: Long, version: QuizVersionEntity, questions: List<QuestionDto>): QuizVersionDto {
+    private fun toCurrentQuizDtos(
+        quizzes: List<QuizEntity>,
+        questionSummaries: List<QuestionSummary>
+    ): List<QuizDto> {
+        if (quizzes.isEmpty()) {
+            return emptyList()
+        }
+
+        val courseId = quizzes.first().courseId ?: throw IllegalStateException("Quiz course id is missing.")
+        val currentVersionsByQuizId = quizVersionRepository.findCurrentVersionsByQuizIds(quizzes.mapNotNull { it.id })
+            .associateBy { it.quizId!! }
+        val currentVersions = quizzes.map { quiz ->
+            val quizId = quiz.id ?: throw IllegalStateException("Quiz id is missing.")
+            currentVersionsByQuizId[quizId]
+                ?: throw IllegalStateException("Current quiz version was not found.")
+        }
+        val versionIds = currentVersions.mapNotNull { it.id }
+        val questionIdsByQuizVersionId = quizVersionQuestionRepository.findAllByQuizVersionIdInOrderByQuizVersionIdAscDisplayOrderAsc(versionIds)
+            .groupBy { it.quizVersionId!! }
+            .mapValues { (_, entities) -> entities.mapNotNull { it.questionId } }
+        val categoryIdsByQuizVersionId = quizVersionCategoryRepository.findAllByQuizVersionIdInOrderByQuizVersionIdAscDisplayOrderAsc(versionIds)
+            .groupBy { it.quizVersionId!! }
+            .mapValues { (_, entities) -> entities.mapNotNull { it.categoryId } }
+        val allCategoryIds = categoryIdsByQuizVersionId.values.flatten().distinct()
+        val categoriesById = if (allCategoryIds.isEmpty()) {
+            emptyMap()
+        } else {
+            categoryRepository.findAllByCourseIdAndIdIn(courseId, allCategoryIds).associateBy { it.id!! }
+        }
+        val availableQuestionIds = questionSummaries.map { it.id }.toSet()
+        val availableCategoryIdsByQuestionId = questionSummaries.associate { it.id to it.categoryIds }
+        val availableQuestionCount = questionSummaries.size
+
+        return quizzes.map { quiz ->
+            val quizId = quiz.id ?: throw IllegalStateException("Quiz id is missing.")
+            val currentVersion = currentVersionsByQuizId[quizId]
+                ?: throw IllegalStateException("Current quiz version was not found.")
+            val currentVersionId = currentVersion.id ?: throw IllegalStateException("Quiz version id is missing.")
+            val questionIds = questionIdsByQuizVersionId[currentVersionId].orEmpty()
+            val categoryIds = categoryIdsByQuizVersionId[currentVersionId].orEmpty()
+
+            QuizDto(
+                id = quizId,
+                courseId = quiz.courseId!!,
+                active = quiz.active,
+                currentVersionNumber = quiz.currentVersionNumber!!,
+                createdAt = quiz.createdAt,
+                updatedAt = quiz.updatedAt,
+                title = currentVersion.title,
+                mode = currentVersion.mode!!,
+                randomCount = currentVersion.randomCount,
+                questionOrder = currentVersion.questionOrder!!,
+                answerOrder = currentVersion.answerOrder!!,
+                questionIds = questionIds,
+                categories = categoryIds.mapNotNull { categoryId ->
+                    categoriesById[categoryId]?.let { QuizCategoryDto(it.id!!, it.name) }
+                },
+                resolvedQuestionCount = resolveQuestionCount(
+                    version = currentVersion,
+                    questionIds = questionIds,
+                    categoryIds = categoryIds.toSet(),
+                    availableQuestionIds = availableQuestionIds,
+                    availableCategoryIdsByQuestionId = availableCategoryIdsByQuestionId,
+                    availableQuestionCount = availableQuestionCount
+                )
+            )
+        }
+    }
+
+    private fun toQuizVersionDto(
+        courseId: Long,
+        version: QuizVersionEntity,
+        questionSummaries: List<QuestionSummary>
+    ): QuizVersionDto {
+        val questionIds = quizVersionQuestionRepository.findAllByQuizVersionIdOrderByDisplayOrderAsc(version.id!!).map { it.questionId!! }
+        val categoryIds = quizVersionCategoryRepository.findAllByQuizVersionIdOrderByDisplayOrderAsc(version.id!!)
+            .map { it.categoryId!! }
+
         return QuizVersionDto(
             id = version.id!!,
             quizId = version.quizId!!,
@@ -354,15 +415,24 @@ class QuizFacade(
             randomCount = version.randomCount,
             questionOrder = version.questionOrder!!,
             answerOrder = version.answerOrder!!,
-            questionIds = quizVersionQuestionRepository.findAllByQuizVersionIdOrderByDisplayOrderAsc(version.id!!).map { it.questionId!! },
-            categories = findCategoryDtos(courseId, version.id!!),
-            resolvedQuestionCount = resolveQuestionCount(version, questions)
+            questionIds = questionIds,
+            categories = findCategoryDtos(courseId, categoryIds),
+            resolvedQuestionCount = resolveQuestionCount(
+                version = version,
+                questionIds = questionIds,
+                categoryIds = categoryIds.toSet(),
+                availableQuestionIds = questionSummaries.map { it.id }.toSet(),
+                availableCategoryIdsByQuestionId = questionSummaries.associate { it.id to it.categoryIds },
+                availableQuestionCount = questionSummaries.size
+            )
         )
     }
 
-    private fun findCategoryDtos(courseId: Long, quizVersionId: Long): List<QuizCategoryDto> {
-        val categoryIds = quizVersionCategoryRepository.findAllByQuizVersionIdOrderByDisplayOrderAsc(quizVersionId)
-            .map { it.categoryId!! }
+    private fun findCategoryDtos(courseId: Long, categoryIds: List<Long>): List<QuizCategoryDto> {
+        if (categoryIds.isEmpty()) {
+            return emptyList()
+        }
+
         val categoriesById = categoryRepository.findAllByCourseIdAndIdIn(courseId, categoryIds).associateBy { it.id!! }
 
         return categoryIds.mapNotNull { categoryId ->
@@ -370,23 +440,33 @@ class QuizFacade(
         }
     }
 
-    private fun resolveQuestionCount(version: QuizVersionEntity, questions: List<QuestionDto>): Int {
+    private fun resolveQuestionCount(
+        version: QuizVersionEntity,
+        questionIds: List<Long>,
+        categoryIds: Set<Long>,
+        availableQuestionIds: Set<Long>,
+        availableCategoryIdsByQuestionId: Map<Long, Set<Long>>,
+        availableQuestionCount: Int
+    ): Int {
         return when (version.mode!!) {
-            QuizMode.MANUAL -> {
-                val availableIds = questions.map { it.id }.toSet()
-                quizVersionQuestionRepository.findAllByQuizVersionIdOrderByDisplayOrderAsc(version.id!!)
-                    .count { availableIds.contains(it.questionId!!) }
-            }
+            QuizMode.MANUAL -> questionIds.count { availableQuestionIds.contains(it) }
 
-            QuizMode.RANDOM -> min(version.randomCount ?: questions.size, questions.size)
+            QuizMode.RANDOM -> min(version.randomCount ?: availableQuestionCount, availableQuestionCount)
 
             QuizMode.CATEGORY -> {
-                val categoryIds = quizVersionCategoryRepository.findAllByQuizVersionIdOrderByDisplayOrderAsc(version.id!!)
-                    .map { it.categoryId!! }
-                    .toSet()
-                val matchingQuestions = questions.count { question -> question.categories.any { category -> categoryIds.contains(category.id) } }
+                val matchingQuestions = availableCategoryIdsByQuestionId.values
+                    .count { questionCategoryIds -> questionCategoryIds.any { categoryIds.contains(it) } }
                 min(version.randomCount ?: matchingQuestions, matchingQuestions)
             }
+        }
+    }
+
+    private fun toQuestionSummaries(questions: List<QuestionDto>): List<QuestionSummary> {
+        return questions.map { question ->
+            QuestionSummary(
+                id = question.id,
+                categoryIds = question.categories.map { it.id }.toSet()
+            )
         }
     }
 

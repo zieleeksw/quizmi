@@ -105,6 +105,15 @@ class QuestionFacade(
     }
 
     @Transactional(readOnly = true)
+    fun fetchQuestionSummaries(
+        courseId: Long,
+        actorUserId: Long
+    ): List<QuestionSummary> {
+        assertCourseVisibility(courseId)
+        return loadCurrentQuestionSummaries(courseId)
+    }
+
+    @Transactional(readOnly = true)
     fun fetchQuestionsByIds(
         courseId: Long,
         actorUserId: Long,
@@ -344,6 +353,40 @@ class QuestionFacade(
     private fun loadCurrentQuestions(courseId: Long): List<QuestionDto> {
         return questionRepository.findAllByCourseIdOrderByCreatedAtDesc(courseId)
             .map { toCurrentQuestionDto(it) }
+    }
+
+    private fun loadCurrentQuestionSummaries(courseId: Long): List<QuestionSummary> {
+        val questions = questionRepository.findAllByCourseIdOrderByCreatedAtDesc(courseId)
+
+        if (questions.isEmpty()) {
+            return emptyList()
+        }
+
+        val currentVersionsByQuestionId = questionVersionRepository.findCurrentVersionsByQuestionIds(
+            questions.mapNotNull { it.id }
+        ).associateBy { it.questionId!! }
+        val currentQuestionVersionIds = currentVersionsByQuestionId.values.mapNotNull { it.id }
+        val categoriesByQuestionVersionId = if (currentQuestionVersionIds.isEmpty()) {
+            emptyMap()
+        } else {
+            questionVersionCategoryRepository.findAllByQuestionVersionIdInOrderByQuestionVersionIdAscDisplayOrderAsc(
+                currentQuestionVersionIds
+            ).groupBy { it.questionVersionId!! }
+        }
+
+        return questions.map { question ->
+            val questionId = question.id ?: throw IllegalStateException("Question id is missing.")
+            val currentVersion = currentVersionsByQuestionId[questionId]
+                ?: throw IllegalStateException("Current question version was not found.")
+
+            QuestionSummary(
+                id = questionId,
+                categoryIds = categoriesByQuestionVersionId[currentVersion.id!!]
+                    .orEmpty()
+                    .mapNotNull { it.categoryId }
+                    .toSet()
+            )
+        }
     }
 
     private fun toCurrentQuestionDto(question: QuestionEntity): QuestionDto {
