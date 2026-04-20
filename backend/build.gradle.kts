@@ -28,6 +28,8 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-web")
+	implementation("org.aspectj:aspectjweaver")
+	implementation("org.springframework:spring-aop")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.springframework.security:spring-security-crypto")
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
