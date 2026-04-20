@@ -88,19 +88,30 @@
       <p class="quiz-play-question__hint quiz-play-question__hint--correct">This question has been checked. Continue when you're ready.</p>
       }
 
-      @if (currentQuestionChecked() && question.explanation) {
-      <div class="quiz-play-question__explanation">
-        <p class="app-eyebrow">Explanation</p>
-        <div [innerHTML]="question.explanation | richTextHtml"></div>
-      </div>
-      }
-
       <div class="quiz-play-actions">
         <app-action-button label="Previous" [routerLink]="null" tone="secondary" [disabled]="currentIndex() === 0"
           (clicked)="goToPreviousQuestion()" />
         <app-action-button [label]="primaryActionLabel()" [routerLink]="null" [disabled]="isSaving() || isSubmitting()"
           (clicked)="handlePrimaryAction()" />
       </div>
+
+      @if (currentQuestionChecked() && question.categories.length) {
+      <div class="quiz-play-question__categories">
+        <p class="app-eyebrow">Categories</p>
+        <div class="quiz-play-question__category-row">
+          @for (category of question.categories; track category.id) {
+          <span class="quiz-play-question__category-pill">{{ category.name }}</span>
+          }
+        </div>
+      </div>
+      }
+
+      @if (currentQuestionChecked() && question.explanation) {
+      <div class="quiz-play-question__explanation">
+        <p class="app-eyebrow">Explanation</p>
+        <div [innerHTML]="question.explanation | richTextHtml"></div>
+      </div>
+      }
       } @else {
       <div class="quiz-play-empty">
         <p class="quiz-play-empty__title">This quiz session could not load the current question.</p>

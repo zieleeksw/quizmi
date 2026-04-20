@@ -72,7 +72,11 @@ describe('QuizPlayPageComponent', () => {
     pendingRequestsCount: 0
   };
 
-  async function configureComponent(updateSession: jasmine.Spy | (() => unknown) = () => of(session)) {
+  async function configureComponent(
+    updateSession: jasmine.Spy | (() => unknown) = () => of(session),
+    questionOverride: QuestionDto = question,
+    sessionOverride: QuizSessionDto = session
+  ) {
     await TestBed.configureTestingModule({
       imports: [QuizPlayPageComponent],
       providers: [
@@ -103,19 +107,19 @@ describe('QuizPlayPageComponent', () => {
         {
           provide: QuestionService,
           useValue: {
-            fetchQuestions: () => of([question])
+            fetchQuestions: () => of([questionOverride])
           }
         },
         {
           provide: AttemptService,
           useValue: {
-            createOrResumeSession: () => of(session),
+            createOrResumeSession: () => of(sessionOverride),
             updateSession,
             createAttempt: () => of({
               id: 401,
               courseId: course.id,
               quizId: quiz.id,
-              userId: session.userId,
+              userId: sessionOverride.userId,
               quizTitle: quiz.title,
               correctAnswers: 0,
               totalQuestions: 1,
@@ -232,4 +236,35 @@ describe('QuizPlayPageComponent', () => {
     expect(component.isSelected(question.id, 201)).toBeTrue();
     expect(component.isSelected(question.id, 203)).toBeTrue();
   }));
+
+  it('should show categories and explanation below the action buttons after checking the question', async () => {
+    const questionWithFeedback: QuestionDto = {
+      ...question,
+      explanation: 'Explanation content',
+      categories: [
+        { id: 1, name: 'Security' },
+        { id: 2, name: 'Tokens' }
+      ]
+    };
+    const fixture = await configureComponent(() => of(session), questionWithFeedback);
+
+    expect(fixture.nativeElement.querySelector('.quiz-play-question__categories')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.quiz-play-question__explanation')).toBeNull();
+
+    fixture.componentInstance.checkedQuestionIds.set(new Set([question.id]));
+    fixture.detectChanges();
+
+    const actions = fixture.nativeElement.querySelector('.quiz-play-actions') as HTMLElement | null;
+    const categories = fixture.nativeElement.querySelector('.quiz-play-question__categories') as HTMLElement | null;
+    const explanation = fixture.nativeElement.querySelector('.quiz-play-question__explanation') as HTMLElement | null;
+
+    expect(actions).not.toBeNull();
+    expect(categories).not.toBeNull();
+    expect(explanation).not.toBeNull();
+    expect(categories?.textContent).toContain('Security');
+    expect(categories?.textContent).toContain('Tokens');
+    expect(explanation?.textContent).toContain('Explanation content');
+    expect(actions?.compareDocumentPosition(categories!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(categories?.compareDocumentPosition(explanation!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
 });

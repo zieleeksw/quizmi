@@ -270,18 +270,42 @@
   color: var(--color-secondary-strong);
 }
 
+.quiz-play-question__categories,
 .quiz-play-question__explanation {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.6rem;
   padding: 1rem 1.05rem;
   border: 1px solid rgba(24, 43, 73, 0.12);
   border-radius: 1rem;
   background: rgba(24, 43, 73, 0.04);
 }
 
+.quiz-play-question__category-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.quiz-play-question__category-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.1rem;
+  padding: 0.42rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(34, 108, 99, 0.1);
+  color: var(--color-secondary-strong);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.quiz-play-question__categories > p,
 .quiz-play-question__explanation > p,
 .quiz-play-question__explanation > div {
   margin: 0;
+}
+
+.quiz-play-question__explanation > p,
+.quiz-play-question__explanation > div {
   line-height: 1.6;
 }
 
