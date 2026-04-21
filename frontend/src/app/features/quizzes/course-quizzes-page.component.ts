@@ -57,7 +57,7 @@ export class CourseQuizzesPageComponent {
       quiz.categories.some((category) => category.name.toLocaleLowerCase().includes(normalizedSearch))
     );
   });
-  readonly pageSize = 3;
+  readonly pageSize = 9;
   readonly totalPages = computed(() => {
     const length = this.filteredQuizzes().length;
     return length ? Math.ceil(length / this.pageSize) : 0;
