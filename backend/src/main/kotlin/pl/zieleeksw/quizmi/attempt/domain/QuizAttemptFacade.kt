@@ -55,9 +55,8 @@ class QuizAttemptFacade(
         assertCourseVisibility(courseId, userId)
         val quiz = quizFacade.fetchQuizForCourse(courseId, quizId, userId)
         val submittedAnswers = normalizeSubmittedAnswers(answers)
-        val currentQuestions = questionFacade.fetchQuestions(courseId, userId)
-        val questionsById = currentQuestions.associateBy { it.id }
         val activeSession = quizSessionRepository.findByCourseIdAndQuizIdAndUserId(courseId, quizId, userId)
+        var fallbackQuestions: List<QuestionDto>? = null
         val questionSpec = activeSession
             .map {
                 val sessionQuestionIds = deserializeQuestionIds(it.questionIdsJson)
@@ -68,7 +67,14 @@ class QuizAttemptFacade(
                     answerOrderByQuestion = deserializeAnswerOrder(it.answerOrderJson)
                 )
             }
-            .orElseGet { resolveQuestionSpec(quiz, currentQuestions) }
+            .orElseGet {
+                val currentQuestions = questionFacade.fetchQuestions(courseId, userId)
+                fallbackQuestions = currentQuestions
+                resolveQuestionSpec(quiz, currentQuestions)
+            }
+        val questionsById = activeSession
+            .map { questionFacade.fetchQuestionsByIds(courseId, userId, questionSpec.orderedQuestionIds).associateBy { question -> question.id } }
+            .orElseGet { (fallbackQuestions ?: questionFacade.fetchQuestions(courseId, userId)).associateBy { question -> question.id } }
 
         assertSubmittedQuestionsMatchQuiz(submittedAnswers.keys, questionSpec)
         val synchronizedSubmittedAnswers = synchronizeSubmittedAnswers(submittedAnswers, questionsById)

@@ -4,7 +4,6 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import pl.zieleeksw.quizmi.category.domain.CategoryRepository
 import pl.zieleeksw.quizmi.course.domain.CourseFacade
-import pl.zieleeksw.quizmi.question.QuestionDto
 import pl.zieleeksw.quizmi.question.domain.QuestionFacade
 import pl.zieleeksw.quizmi.question.domain.QuestionSummary
 import pl.zieleeksw.quizmi.quiz.QuizCategoryDto
@@ -39,8 +38,8 @@ class QuizFacade(
         actorUserId: Long
     ): QuizDto {
         assertCourseOwnership(courseId, actorUserId)
-        val questions = questionFacade.fetchQuestions(courseId, actorUserId)
-        val draft = validateAndCreateDraft(courseId, questions, title, mode, randomCount, questionOrder, answerOrder, questionIds, categoryIds)
+        val questionSummaries = questionFacade.fetchQuestionSummaries(courseId, actorUserId)
+        val draft = validateAndCreateDraft(courseId, questionSummaries, title, mode, randomCount, questionOrder, answerOrder, questionIds, categoryIds)
         val now = roundToDatabasePrecision(Instant.now())
         val savedQuiz = quizRepository.save(
             QuizEntity(
@@ -53,7 +52,7 @@ class QuizFacade(
         )
 
         saveVersion(savedQuiz.id!!, 1, draft, now)
-        return toCurrentQuizDto(savedQuiz, toQuestionSummaries(questions))
+        return toCurrentQuizDto(savedQuiz, questionSummaries)
     }
 
     @Transactional(readOnly = true)
@@ -84,8 +83,8 @@ class QuizFacade(
         actorUserId: Long
     ): QuizDto {
         courseFacade.fetchCourseForMember(courseId, actorUserId)
-        val questions = questionFacade.fetchQuestions(courseId, actorUserId)
-        return toCurrentQuizDto(findActiveQuizInCourseOrThrow(quizId, courseId), toQuestionSummaries(questions))
+        val questionSummaries = questionFacade.fetchQuestionSummaries(courseId, actorUserId)
+        return toCurrentQuizDto(findActiveQuizInCourseOrThrow(quizId, courseId), questionSummaries)
     }
 
     @Transactional(readOnly = true)
@@ -105,9 +104,8 @@ class QuizFacade(
         actorUserId: Long
     ): List<QuizVersionDto> {
         assertCourseOwnership(courseId, actorUserId)
-        val questions = questionFacade.fetchQuestions(courseId, actorUserId)
+        val questionSummaries = questionFacade.fetchQuestionSummaries(courseId, actorUserId)
         val quiz = findActiveQuizInCourseOrThrow(quizId, courseId)
-        val questionSummaries = toQuestionSummaries(questions)
 
         return quizVersionRepository.findAllByQuizIdOrderByVersionNumberDesc(quiz.id!!)
             .map { toQuizVersionDto(courseId, it, questionSummaries) }
@@ -127,9 +125,9 @@ class QuizFacade(
         actorUserId: Long
     ): QuizDto {
         assertCourseOwnership(courseId, actorUserId)
-        val questions = questionFacade.fetchQuestions(courseId, actorUserId)
+        val questionSummaries = questionFacade.fetchQuestionSummaries(courseId, actorUserId)
         val quiz = findActiveQuizInCourseOrThrow(quizId, courseId)
-        val draft = validateAndCreateDraft(courseId, questions, title, mode, randomCount, questionOrder, answerOrder, questionIds, categoryIds)
+        val draft = validateAndCreateDraft(courseId, questionSummaries, title, mode, randomCount, questionOrder, answerOrder, questionIds, categoryIds)
         val currentVersion = quizVersionRepository.findByQuizIdAndVersionNumber(quiz.id!!, quiz.currentVersionNumber!!)
             .orElseThrow { IllegalStateException("Current quiz version was not found.") }
 
@@ -141,7 +139,7 @@ class QuizFacade(
         val savedQuiz = quizRepository.save(quiz)
 
         saveVersion(savedQuiz.id!!, savedQuiz.currentVersionNumber!!, draft, now)
-        return toCurrentQuizDto(savedQuiz, toQuestionSummaries(questions))
+        return toCurrentQuizDto(savedQuiz, questionSummaries)
     }
 
     @Transactional
@@ -159,7 +157,7 @@ class QuizFacade(
 
     private fun validateAndCreateDraft(
         courseId: Long,
-        questions: List<QuestionDto>,
+        questionSummaries: List<QuestionSummary>,
         title: String,
         mode: QuizMode,
         randomCount: Int?,
@@ -186,7 +184,7 @@ class QuizFacade(
                     throw IllegalArgumentException("Manual quiz cannot define category filters.")
                 }
 
-                assertQuestionsBelongToCourse(questions, normalizedQuestionIds)
+                assertQuestionsBelongToCourse(questionSummaries, normalizedQuestionIds)
             }
 
             QuizMode.RANDOM -> {
@@ -199,7 +197,7 @@ class QuizFacade(
                 if (normalizedCategoryIds.isNotEmpty()) {
                     throw IllegalArgumentException("Random quiz cannot define category filters.")
                 }
-                if (questions.isEmpty()) {
+                if (questionSummaries.isEmpty()) {
                     throw IllegalArgumentException("Random quiz requires at least 1 course question.")
                 }
             }
@@ -221,8 +219,8 @@ class QuizFacade(
                     throw IllegalArgumentException("Some selected categories are invalid for this course.")
                 }
 
-                val matchedAnyQuestion = questions.any { question ->
-                    question.categories.any { category -> normalizedCategoryIds.contains(category.id) }
+                val matchedAnyQuestion = questionSummaries.any { question ->
+                    question.categoryIds.any { categoryId -> normalizedCategoryIds.contains(categoryId) }
                 }
 
                 if (!matchedAnyQuestion) {
@@ -253,10 +251,10 @@ class QuizFacade(
     }
 
     private fun assertQuestionsBelongToCourse(
-        questions: List<QuestionDto>,
+        questionSummaries: List<QuestionSummary>,
         questionIds: List<Long>
     ) {
-        val availableQuestionIds = questions.map { it.id }.toSet()
+        val availableQuestionIds = questionSummaries.map { it.id }.toSet()
 
         if (!availableQuestionIds.containsAll(questionIds)) {
             throw IllegalArgumentException("Some selected questions are invalid for this course.")
@@ -458,15 +456,6 @@ class QuizFacade(
                     .count { questionCategoryIds -> questionCategoryIds.any { categoryIds.contains(it) } }
                 min(version.randomCount ?: matchingQuestions, matchingQuestions)
             }
-        }
-    }
-
-    private fun toQuestionSummaries(questions: List<QuestionDto>): List<QuestionSummary> {
-        return questions.map { question ->
-            QuestionSummary(
-                id = question.id,
-                categoryIds = question.categories.map { it.id }.toSet()
-            )
         }
     }
 

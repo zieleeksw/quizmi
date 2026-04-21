@@ -9,6 +9,7 @@ import pl.zieleeksw.quizmi.attempt.QuizSessionDto
 import pl.zieleeksw.quizmi.course.domain.CourseFacade
 import pl.zieleeksw.quizmi.question.QuestionDto
 import pl.zieleeksw.quizmi.question.domain.QuestionFacade
+import pl.zieleeksw.quizmi.question.domain.QuestionSummary
 import pl.zieleeksw.quizmi.quiz.QuizDto
 import pl.zieleeksw.quizmi.quiz.QuizMode
 import pl.zieleeksw.quizmi.quiz.QuizOrderMode
@@ -77,13 +78,13 @@ class QuizSessionFacade(
     }
 
     private fun createSession(courseId: Long, quiz: QuizDto, userId: Long): QuizSessionDto {
-        val currentQuestions = questionFacade.fetchQuestions(courseId, userId)
-        val resolvedQuestionIds = resolveQuestionIdsForQuiz(quiz, currentQuestions)
-        val answerOrderByQuestion = resolveAnswerOrderByQuestion(quiz, currentQuestions.associateBy { it.id }, resolvedQuestionIds)
+        val resolvedQuestions = resolveQuestionsForQuiz(courseId, userId, quiz)
 
-        if (resolvedQuestionIds.isEmpty()) {
+        if (resolvedQuestions.questionIds.isEmpty()) {
             throw IllegalArgumentException("Quiz does not contain any playable questions.")
         }
+
+        val answerOrderByQuestion = resolveAnswerOrderByQuestion(quiz, resolvedQuestions.questionsById, resolvedQuestions.questionIds)
 
         val now = roundToDatabasePrecision(Instant.now())
         val savedSession = quizSessionRepository.save(
@@ -92,7 +93,7 @@ class QuizSessionFacade(
                 quizId = quiz.id,
                 userId = userId,
                 quizTitle = quiz.title,
-                questionIdsJson = writeJson(resolvedQuestionIds),
+                questionIdsJson = writeJson(resolvedQuestions.questionIds),
                 answersJson = writeJson(emptyMap<Long, List<Long>>()),
                 answerOrderJson = writeJson(answerOrderByQuestion),
                 currentIndex = 0,
@@ -104,16 +105,41 @@ class QuizSessionFacade(
         return toDto(savedSession)
     }
 
-    private fun resolveQuestionIdsForQuiz(quiz: QuizDto, currentQuestions: List<QuestionDto>): List<Long> {
+    private fun resolveQuestionsForQuiz(courseId: Long, userId: Long, quiz: QuizDto): ResolvedSessionQuestions {
+        if (quiz.mode == QuizMode.MANUAL) {
+            val questionsById = loadQuestionsById(courseId, userId, quiz.questionIds)
+            val availableQuestionIds = quiz.questionIds.filter { questionsById.containsKey(it) }
+            val resolvedQuestionIds = if (quiz.questionOrder == QuizOrderMode.RANDOM) {
+                availableQuestionIds.shuffled()
+            } else {
+                availableQuestionIds
+            }
+
+            return ResolvedSessionQuestions(
+                questionIds = resolvedQuestionIds,
+                questionsById = questionsById.filterKeys { resolvedQuestionIds.contains(it) }
+            )
+        }
+
+        val questionSummaries = questionFacade.fetchQuestionSummaries(courseId, userId)
+        val resolvedQuestionIds = resolveQuestionIdsForQuiz(quiz, questionSummaries)
+
+        return ResolvedSessionQuestions(
+            questionIds = resolvedQuestionIds,
+            questionsById = loadQuestionsById(courseId, userId, resolvedQuestionIds)
+        )
+    }
+
+    private fun resolveQuestionIdsForQuiz(quiz: QuizDto, questionSummaries: List<QuestionSummary>): List<Long> {
         return when (quiz.mode) {
             QuizMode.MANUAL -> {
-                val availableIds = currentQuestions.map { it.id }.toSet()
+                val availableIds = questionSummaries.map { it.id }.toSet()
                 val manualQuestionIds = quiz.questionIds.filter { availableIds.contains(it) }
                 if (quiz.questionOrder == QuizOrderMode.RANDOM) manualQuestionIds.shuffled() else manualQuestionIds
             }
 
             QuizMode.RANDOM -> {
-                val courseQuestionIds = currentQuestions.map { it.id }
+                val courseQuestionIds = questionSummaries.map { it.id }
                 val shuffled = courseQuestionIds.shuffled()
                 val selected = shuffled.take(min(quiz.randomCount ?: shuffled.size, shuffled.size))
                 if (quiz.questionOrder == QuizOrderMode.RANDOM) selected else courseQuestionIds.filter { selected.contains(it) }
@@ -121,8 +147,8 @@ class QuizSessionFacade(
 
             QuizMode.CATEGORY -> {
                 val categoryIds = quiz.categories.map { it.id }.toSet()
-                val matchingQuestionIds = currentQuestions
-                    .filter { question -> question.categories.any { category -> categoryIds.contains(category.id) } }
+                val matchingQuestionIds = questionSummaries
+                    .filter { question -> question.categoryIds.any { categoryId -> categoryIds.contains(categoryId) } }
                     .map { it.id }
                 if (quiz.questionOrder == QuizOrderMode.RANDOM) {
                     matchingQuestionIds.shuffled().take(min(quiz.randomCount ?: matchingQuestionIds.size, matchingQuestionIds.size))
@@ -332,4 +358,9 @@ class QuizSessionFacade(
     private fun assertCourseVisibility(courseId: Long, actorUserId: Long) {
         courseFacade.fetchCourseForMember(courseId, actorUserId)
     }
+
+    private data class ResolvedSessionQuestions(
+        val questionIds: List<Long>,
+        val questionsById: Map<Long, QuestionDto>
+    )
 }
