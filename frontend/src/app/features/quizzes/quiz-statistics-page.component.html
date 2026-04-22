@@ -75,36 +75,6 @@
   <section class="app-panel quiz-statistics-panel">
     <div class="quiz-statistics-panel__header">
       <div>
-        <p class="app-eyebrow">Drill-down</p>
-        <h2>Most problematic questions</h2>
-      </div>
-    </div>
-
-    @if (!questionStats().length) {
-    <div class="quiz-statistics-empty">
-      <p class="quiz-statistics-empty__title">No questions answered.</p>
-    </div>
-    } @else {
-    <div class="quiz-statistics-question-list">
-      @for (q of questionStats().slice(0, 5); track q.questionId) {
-      <article class="quiz-statistics-question-card">
-        <div class="quiz-statistics-question-card__score"
-          [class.quiz-statistics-question-card__score--alert]="q.accuracy < 50">
-          {{ q.accuracy }}%
-        </div>
-        <div class="quiz-statistics-question-card__info">
-          <strong [innerHTML]="q.prompt | richTextHtml"></strong>
-          <p class="app-copy">{{ q.categoryNames }} &bull; {{ q.attemptsCount }} attempts</p>
-        </div>
-      </article>
-      }
-    </div>
-    }
-  </section>
-
-  <section class="app-panel quiz-statistics-panel">
-    <div class="quiz-statistics-panel__header">
-      <div>
         <p class="app-eyebrow">Full analysis</p>
         <h2>All questions</h2>
       </div>
