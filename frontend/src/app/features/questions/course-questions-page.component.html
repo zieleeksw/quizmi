@@ -83,16 +83,24 @@
                 <div class="course-question-card__top">
                   <div class="course-question-card__content">
                     <h3 [innerHTML]="question.prompt | richTextHtml"></h3>
-                    @if (question.explanation) {
-                      <div class="course-question-card__explanation" [innerHTML]="question.explanation | richTextHtml"></div>
-                    }
                     <div class="course-question-card__badges">
                       @for (category of question.categories; track category.id) {
                         <span class="course-question-card__badge">{{ category.name }}</span>
                       }
                     </div>
                   </div>
+
+                  <div class="course-question-card__footer">
+                    <span class="course-question-card__meta">Created {{ question.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
+                    @if (isQuestionUpdated(question)) {
+                      <span class="course-question-card__meta">Updated {{ question.updatedAt | date: 'd MMM yyyy, HH:mm' }}</span>
+                    }
+                  </div>
                 </div>
+
+                @if (question.explanation) {
+                  <div class="course-question-card__explanation" [innerHTML]="question.explanation | richTextHtml"></div>
+                }
 
                 <div class="course-question-card__answers">
                   @for (answer of question.answers; track answer.id) {
@@ -100,13 +108,6 @@
                       <span>{{ answer.displayOrder + 1 }}</span>
                       <strong [innerHTML]="answer.content | richTextHtml"></strong>
                     </div>
-                  }
-                </div>
-
-                <div class="course-question-card__footer">
-                  <span class="course-question-card__meta">Created {{ question.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
-                  @if (isQuestionUpdated(question)) {
-                    <span class="course-question-card__meta">Updated {{ question.updatedAt | date: 'd MMM yyyy, HH:mm' }}</span>
                   }
                 </div>
               </a>
@@ -115,16 +116,27 @@
                 <div class="course-question-card__top">
                   <div class="course-question-card__content">
                     <h3 [innerHTML]="question.prompt | richTextHtml"></h3>
-                    @if (question.explanation) {
-                      <div class="course-question-card__explanation" [innerHTML]="question.explanation | richTextHtml"></div>
-                    }
                     <div class="course-question-card__badges">
                       @for (category of question.categories; track category.id) {
                         <span class="course-question-card__badge">{{ category.name }}</span>
                       }
                     </div>
                   </div>
+
+                  <div class="course-question-card__footer">
+                    <span class="course-question-card__meta">Created {{ question.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
+                    @if (isQuestionUpdated(question)) {
+                      <span class="course-question-card__meta">Updated {{ question.updatedAt | date: 'd MMM yyyy, HH:mm' }}</span>
+                    }
+                    @if (!canAccessCourse()) {
+                      <span class="course-question-card__meta">Access required</span>
+                    }
+                  </div>
                 </div>
+
+                @if (question.explanation) {
+                  <div class="course-question-card__explanation" [innerHTML]="question.explanation | richTextHtml"></div>
+                }
 
                 <div class="course-question-card__answers">
                   @for (answer of question.answers; track answer.id) {
@@ -132,16 +144,6 @@
                       <span>{{ answer.displayOrder + 1 }}</span>
                       <strong [innerHTML]="answer.content | richTextHtml"></strong>
                     </div>
-                  }
-                </div>
-
-                <div class="course-question-card__footer">
-                  <span class="course-question-card__meta">Created {{ question.createdAt | date: 'd MMM yyyy, HH:mm' }}</span>
-                  @if (isQuestionUpdated(question)) {
-                    <span class="course-question-card__meta">Updated {{ question.updatedAt | date: 'd MMM yyyy, HH:mm' }}</span>
-                  }
-                  @if (!canAccessCourse()) {
-                    <span class="course-question-card__meta">Access required</span>
                   }
                 </div>
               </article>
