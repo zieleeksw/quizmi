@@ -38,7 +38,9 @@ describe('QuizPlayPageComponent', () => {
     answerOrderByQuestion: {
       [question.id]: [203, 201, 202]
     },
+    checkedQuestionIds: [],
     currentIndex: 0,
+    furthestIndex: 0,
     answers: {},
     updatedAt: '2026-04-19T10:00:00Z'
   };
@@ -175,7 +177,8 @@ describe('QuizPlayPageComponent', () => {
           questionId: question.id,
           answerIds: [201, 203]
         }
-      ]
+      ],
+      checkedQuestionIds: []
     });
   }));
 
@@ -230,12 +233,63 @@ describe('QuizPlayPageComponent', () => {
           questionId: question.id,
           answerIds: [201, 203]
         }
-      ]
+      ],
+      checkedQuestionIds: []
     });
 
     expect(component.isSelected(question.id, 201)).toBeTrue();
     expect(component.isSelected(question.id, 203)).toBeTrue();
   }));
+
+  it('should keep answered previous questions locked after resuming a session', async () => {
+    const lockedSession: QuizSessionDto = {
+      ...session,
+      questionIds: [question.id, 999],
+      currentIndex: 0,
+      furthestIndex: 1,
+      answers: {
+        [question.id]: [201]
+      }
+    };
+    const updateSession = jasmine.createSpy('updateSession').and.returnValue(of(lockedSession));
+    const fixture = await configureComponent(updateSession, question, lockedSession);
+    const component = fixture.componentInstance;
+
+    expect(component.currentQuestionLocked()).toBeTrue();
+
+    component.toggleAnswer(203);
+    fixture.detectChanges();
+
+    expect(component.isSelected(question.id, 201)).toBeTrue();
+    expect(component.isSelected(question.id, 203)).toBeFalse();
+    expect(updateSession).not.toHaveBeenCalled();
+    expect((fixture.nativeElement.querySelector('input[type="checkbox"]') as HTMLInputElement).disabled).toBeTrue();
+  });
+
+  it('should keep a checked single question locked after resuming a session', async () => {
+    const checkedSession: QuizSessionDto = {
+      ...session,
+      checkedQuestionIds: [question.id],
+      currentIndex: 0,
+      furthestIndex: 0,
+      answers: {
+        [question.id]: [202]
+      }
+    };
+    const updateSession = jasmine.createSpy('updateSession').and.returnValue(of(checkedSession));
+    const fixture = await configureComponent(updateSession, question, checkedSession);
+    const component = fixture.componentInstance;
+
+    expect(component.currentQuestionChecked()).toBeTrue();
+    expect(component.currentQuestionLocked()).toBeTrue();
+
+    component.toggleAnswer(201);
+    fixture.detectChanges();
+
+    expect(component.isSelected(question.id, 202)).toBeTrue();
+    expect(component.isSelected(question.id, 201)).toBeFalse();
+    expect(updateSession).not.toHaveBeenCalled();
+  });
 
   it('should show categories and explanation below the action buttons after checking the question', async () => {
     const questionWithFeedback: QuestionDto = {

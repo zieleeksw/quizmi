@@ -48,22 +48,47 @@ class QuizSessionFacade(
         quizId: Long,
         userId: Long,
         currentIndex: Int,
-        answers: List<QuizAttemptAnswerRequest>
+        answers: List<QuizAttemptAnswerRequest>,
+        checkedQuestionIds: List<Long>?
     ): QuizSessionDto {
         quizFacade.assertActiveQuizVisible(courseId, quizId, userId)
 
         val entity = quizSessionRepository.findByCourseIdAndQuizIdAndUserId(courseId, quizId, userId)
             .orElseThrow { QuizSessionNotFoundException.forQuizId(quizId) }
         val questionIds = deserializeQuestionIds(entity.questionIdsJson)
+        val answerIdsByQuestion = loadAnswerIdsByQuestion(courseId, userId, questionIds)
+        val persistedAnswers = synchronizeAnswers(questionIds, deserializeAnswers(entity.answersJson), answerIdsByQuestion)
         val normalizedAnswers = normalizeAnswers(questionIds, answers)
-        val synchronizedAnswers = synchronizeAnswers(questionIds, normalizedAnswers, loadAnswerIdsByQuestion(courseId, userId, questionIds))
+        val synchronizedAnswers = synchronizeAnswers(questionIds, normalizedAnswers, answerIdsByQuestion)
+        val persistedCheckedQuestionIds = synchronizeCheckedQuestionIds(
+            questionIds = questionIds,
+            checkedQuestionIds = deserializeCheckedQuestionIds(entity.checkedQuestionIdsJson),
+            answers = persistedAnswers
+        )
+        val synchronizedCheckedQuestionIds = synchronizeCheckedQuestionIds(
+            questionIds = questionIds,
+            checkedQuestionIds = checkedQuestionIds?.let { persistedCheckedQuestionIds + it } ?: persistedCheckedQuestionIds,
+            answers = synchronizedAnswers
+        )
 
         if (questionIds.isEmpty()) {
             throw IllegalArgumentException("Quiz session does not contain any playable questions.")
         }
 
+        val nextCurrentIndex = max(0, min(currentIndex, questionIds.size - 1))
+        val currentFurthestIndex = max(entity.furthestIndex ?: 0, entity.currentIndex ?: 0)
+        assertLockedAnswersUnchanged(
+            questionIds = questionIds,
+            furthestIndex = currentFurthestIndex,
+            persistedCheckedQuestionIds = persistedCheckedQuestionIds,
+            persistedAnswers = persistedAnswers,
+            submittedAnswers = synchronizedAnswers
+        )
+
         entity.answersJson = serializeAnswers(synchronizedAnswers)
-        entity.currentIndex = max(0, min(currentIndex, questionIds.size - 1))
+        entity.checkedQuestionIdsJson = serializeCheckedQuestionIds(synchronizedCheckedQuestionIds)
+        entity.currentIndex = nextCurrentIndex
+        entity.furthestIndex = max(currentFurthestIndex, nextCurrentIndex)
         entity.updatedAt = roundToDatabasePrecision(Instant.now())
 
         return toDto(quizSessionRepository.save(entity))
@@ -94,7 +119,9 @@ class QuizSessionFacade(
                 questionIdsJson = writeJson(resolvedQuestions.questionIds),
                 answersJson = writeJson(emptyMap<Long, List<Long>>()),
                 answerOrderJson = writeJson(answerOrderByQuestion),
+                checkedQuestionIdsJson = writeJson(emptyList<Long>()),
                 currentIndex = 0,
+                furthestIndex = 0,
                 createdAt = now,
                 updatedAt = now
             )
@@ -188,10 +215,44 @@ class QuizSessionFacade(
         return normalized
     }
 
+    private fun assertLockedAnswersUnchanged(
+        questionIds: List<Long>,
+        furthestIndex: Int,
+        persistedCheckedQuestionIds: List<Long>,
+        persistedAnswers: Map<Long, List<Long>>,
+        submittedAnswers: Map<Long, List<Long>>
+    ) {
+        val lockedQuestionIds = (
+            questionIds
+                .take(furthestIndex.coerceIn(0, questionIds.size))
+                .filter { questionId -> persistedAnswers[questionId].orEmpty().isNotEmpty() } +
+                persistedCheckedQuestionIds
+            ).toSet()
+
+        lockedQuestionIds.forEach { questionId ->
+            val persistedAnswerIds = persistedAnswers[questionId].orEmpty()
+
+            if (persistedAnswerIds.isEmpty()) {
+                return@forEach
+            }
+
+            val submittedAnswerIds = submittedAnswers[questionId].orEmpty()
+
+            if (persistedAnswerIds.toSet() != submittedAnswerIds.toSet()) {
+                throw IllegalArgumentException("Answered previous questions cannot be edited.")
+            }
+        }
+    }
+
     private fun synchronizeSessionState(entity: QuizSessionEntity, courseId: Long, userId: Long, quiz: QuizSessionSpec): QuizSessionEntity {
         val questionIds = deserializeQuestionIds(entity.questionIdsJson)
         val answerIdsByQuestion = loadAnswerIdsByQuestion(courseId, userId, questionIds)
         val synchronizedAnswers = synchronizeAnswers(questionIds, deserializeAnswers(entity.answersJson), answerIdsByQuestion)
+        val synchronizedCheckedQuestionIds = synchronizeCheckedQuestionIds(
+            questionIds = questionIds,
+            checkedQuestionIds = deserializeCheckedQuestionIds(entity.checkedQuestionIdsJson),
+            answers = synchronizedAnswers
+        )
         val synchronizedAnswerOrder = synchronizeAnswerOrder(
             questionIds = questionIds,
             answerOrderByQuestion = deserializeAnswerOrder(entity.answerOrderJson),
@@ -200,12 +261,14 @@ class QuizSessionFacade(
         )
 
         if (synchronizedAnswers == deserializeAnswers(entity.answersJson)
+            && synchronizedCheckedQuestionIds == deserializeCheckedQuestionIds(entity.checkedQuestionIdsJson)
             && synchronizedAnswerOrder == deserializeAnswerOrder(entity.answerOrderJson)
         ) {
             return entity
         }
 
         entity.answersJson = serializeAnswers(synchronizedAnswers)
+        entity.checkedQuestionIdsJson = serializeCheckedQuestionIds(synchronizedCheckedQuestionIds)
         entity.answerOrderJson = serializeAnswerOrder(synchronizedAnswerOrder)
         entity.updatedAt = roundToDatabasePrecision(Instant.now())
         return quizSessionRepository.save(entity)
@@ -237,6 +300,21 @@ class QuizSessionFacade(
         }
 
         return synchronized
+    }
+
+    private fun synchronizeCheckedQuestionIds(
+        questionIds: List<Long>,
+        checkedQuestionIds: List<Long>,
+        answers: Map<Long, List<Long>>
+    ): List<Long> {
+        val allowedQuestionIds = questionIds.toSet()
+        val checkedQuestionIdSet = checkedQuestionIds.toSet()
+
+        return questionIds.filter { questionId ->
+            checkedQuestionIdSet.contains(questionId) &&
+                allowedQuestionIds.contains(questionId) &&
+                answers[questionId].orEmpty().isNotEmpty()
+        }
     }
 
     private fun resolveAnswerOrderByQuestion(
@@ -309,7 +387,9 @@ class QuizSessionFacade(
             quizTitle = entity.quizTitle,
             questionIds = deserializeQuestionIds(entity.questionIdsJson),
             answerOrderByQuestion = deserializeAnswerOrder(entity.answerOrderJson),
+            checkedQuestionIds = deserializeCheckedQuestionIds(entity.checkedQuestionIdsJson),
             currentIndex = entity.currentIndex!!,
+            furthestIndex = entity.furthestIndex ?: entity.currentIndex!!,
             answers = deserializeAnswers(entity.answersJson),
             updatedAt = entity.updatedAt
         )
@@ -327,12 +407,20 @@ class QuizSessionFacade(
         return writeJson(answerOrderByQuestion)
     }
 
+    private fun serializeCheckedQuestionIds(checkedQuestionIds: List<Long>): String {
+        return writeJson(checkedQuestionIds)
+    }
+
     private fun deserializeAnswers(answersJson: String): Map<Long, List<Long>> {
         return objectMapper.readValue(answersJson, object : TypeReference<Map<Long, List<Long>>>() {}) ?: emptyMap()
     }
 
     private fun deserializeAnswerOrder(answerOrderJson: String): Map<Long, List<Long>> {
         return objectMapper.readValue(answerOrderJson, object : TypeReference<Map<Long, List<Long>>>() {}) ?: emptyMap()
+    }
+
+    private fun deserializeCheckedQuestionIds(checkedQuestionIdsJson: String): List<Long> {
+        return objectMapper.readValue(checkedQuestionIdsJson, object : TypeReference<List<Long>>() {}) ?: emptyList()
     }
 
     private fun writeJson(value: Any): String {

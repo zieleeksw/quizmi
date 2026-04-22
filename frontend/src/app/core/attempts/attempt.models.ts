@@ -11,7 +11,9 @@ export interface QuizSessionDto {
   quizTitle: string;
   questionIds: number[];
   answerOrderByQuestion: Record<string, number[]>;
+  checkedQuestionIds: number[];
   currentIndex: number;
+  furthestIndex: number;
   answers: Record<string, number[]>;
   updatedAt: string;
 }
@@ -59,4 +61,5 @@ export interface QuizAttemptDetailDto {
 export interface SaveQuizSessionRequest {
   currentIndex: number;
   answers: QuizAttemptAnswerRequest[];
+  checkedQuestionIds: number[];
 }

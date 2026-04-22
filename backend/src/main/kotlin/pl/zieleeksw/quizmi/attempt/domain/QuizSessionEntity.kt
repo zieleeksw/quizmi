@@ -45,8 +45,16 @@ open class QuizSessionEntity protected constructor() {
     open lateinit var answerOrderJson: String
         set
 
+    @Column(name = "checked_question_ids_json", nullable = false, columnDefinition = "TEXT")
+    open lateinit var checkedQuestionIdsJson: String
+        set
+
     @Column(name = "current_index", nullable = false)
     open var currentIndex: Int? = null
+        set
+
+    @Column(name = "furthest_index", nullable = false)
+    open var furthestIndex: Int? = null
         set
 
     @Column(name = "created_at", nullable = false)
@@ -65,7 +73,9 @@ open class QuizSessionEntity protected constructor() {
         questionIdsJson: String,
         answersJson: String,
         answerOrderJson: String,
+        checkedQuestionIdsJson: String,
         currentIndex: Int,
+        furthestIndex: Int,
         createdAt: Instant,
         updatedAt: Instant
     ) : this() {
@@ -76,7 +86,9 @@ open class QuizSessionEntity protected constructor() {
         this.questionIdsJson = questionIdsJson
         this.answersJson = answersJson
         this.answerOrderJson = answerOrderJson
+        this.checkedQuestionIdsJson = checkedQuestionIdsJson
         this.currentIndex = currentIndex
+        this.furthestIndex = furthestIndex
         this.createdAt = createdAt
         this.updatedAt = updatedAt
     }

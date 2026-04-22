@@ -35,7 +35,7 @@ export class QuizPlayPageComponent {
   private readonly attemptService = inject(AttemptService);
   private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private sessionSaveTimeout: ReturnType<typeof setTimeout> | null = null;
-  private queuedSessionSave: { currentIndex: number; answers: Record<string, number[]> } | null = null;
+  private queuedSessionSave: { currentIndex: number; answers: Record<string, number[]>; checkedQuestionIds: number[] } | null = null;
   private isSessionSaveInFlight = false;
   private toastId = 0;
 
@@ -68,6 +68,10 @@ export class QuizPlayPageComponent {
   readonly currentQuestionChecked = computed(() => {
     const question = this.currentQuestion();
     return question ? this.checkedQuestionIds().has(question.id) : false;
+  });
+  readonly currentQuestionLocked = computed(() => {
+    const question = this.currentQuestion();
+    return question ? this.isQuestionLocked(question.id) : false;
   });
   readonly isLastQuestion = computed(() => this.currentIndex() === this.orderedQuestions().length - 1);
   readonly progressValue = computed(() => {
@@ -108,7 +112,7 @@ export class QuizPlayPageComponent {
     const question = this.currentQuestion();
     const session = this.session();
 
-    if (!question || !session || this.isQuestionChecked(question.id)) {
+    if (!question || !session || this.isQuestionLocked(question.id)) {
       return;
     }
 
@@ -264,6 +268,26 @@ export class QuizPlayPageComponent {
     return this.isQuestionChecked(questionId) && !this.isSelected(questionId, answerId) && this.isCorrect(questionId, answerId);
   }
 
+  isQuestionLocked(questionId: number): boolean {
+    if (this.isQuestionChecked(questionId)) {
+      return true;
+    }
+
+    const session = this.session();
+
+    if (!session) {
+      return false;
+    }
+
+    const questionIndex = session.questionIds.indexOf(questionId);
+
+    if (questionIndex < 0 || questionIndex >= session.furthestIndex) {
+      return false;
+    }
+
+    return (session.answers[questionId] ?? []).length > 0;
+  }
+
   answerStateLabel(questionId: number, answerId: number): string | null {
     if (this.isSelectedCorrect(questionId, answerId)) {
       return 'Your answer is correct';
@@ -334,6 +358,7 @@ export class QuizPlayPageComponent {
           this.quiz.set(quiz);
           this.questionsById.set(Object.fromEntries(questions.map((question) => [question.id, question])));
           this.session.set(session);
+          this.checkedQuestionIds.set(new Set(session.checkedQuestionIds));
           this.isLoading.set(false);
         },
         error: (error) => {
@@ -344,10 +369,11 @@ export class QuizPlayPageComponent {
   }
 
   private scheduleSessionPersist(currentIndex: number, answers: Record<string, number[]>): void {
-    this.updateSessionOptimistically(currentIndex, answers);
+    this.updateSessionOptimistically(currentIndex, answers, [...this.checkedQuestionIds()]);
     this.queuedSessionSave = {
       currentIndex,
-      answers: this.cloneAnswers(answers)
+      answers: this.cloneAnswers(answers),
+      checkedQuestionIds: [...this.checkedQuestionIds()]
     };
 
     if (this.sessionSaveTimeout) {
@@ -361,10 +387,11 @@ export class QuizPlayPageComponent {
   }
 
   private persistSessionImmediately(currentIndex: number, answers: Record<string, number[]>): void {
-    this.updateSessionOptimistically(currentIndex, answers);
+    this.updateSessionOptimistically(currentIndex, answers, [...this.checkedQuestionIds()]);
     this.queuedSessionSave = {
       currentIndex,
-      answers: this.cloneAnswers(answers)
+      answers: this.cloneAnswers(answers),
+      checkedQuestionIds: [...this.checkedQuestionIds()]
     };
 
     if (this.sessionSaveTimeout) {
@@ -375,7 +402,7 @@ export class QuizPlayPageComponent {
     this.flushSessionSaveQueue();
   }
 
-  private updateSessionOptimistically(currentIndex: number, answers: Record<string, number[]>): void {
+  private updateSessionOptimistically(currentIndex: number, answers: Record<string, number[]>, checkedQuestionIds: number[]): void {
     const session = this.session();
 
     if (!session) {
@@ -385,6 +412,8 @@ export class QuizPlayPageComponent {
     const optimisticSession: QuizSessionDto = {
       ...session,
       currentIndex,
+      furthestIndex: Math.max(session.furthestIndex, currentIndex),
+      checkedQuestionIds: [...checkedQuestionIds],
       answers: this.cloneAnswers(answers)
     };
     this.session.set(optimisticSession);
@@ -404,7 +433,8 @@ export class QuizPlayPageComponent {
 
     this.attemptService.updateSession(this.courseId, this.quizId, {
       currentIndex: nextSave.currentIndex,
-      answers: this.toAnswerRequests(nextSave.answers)
+      answers: this.toAnswerRequests(nextSave.answers),
+      checkedQuestionIds: nextSave.checkedQuestionIds
     })
       .pipe(
         finalize(() => {
@@ -426,6 +456,8 @@ export class QuizPlayPageComponent {
               ? {
                 ...updatedSession,
                 currentIndex: currentSession.currentIndex,
+                furthestIndex: Math.max(updatedSession.furthestIndex, currentSession.furthestIndex),
+                checkedQuestionIds: [...currentSession.checkedQuestionIds],
                 answers: this.cloneAnswers(currentSession.answers)
               }
               : updatedSession);
@@ -463,6 +495,12 @@ export class QuizPlayPageComponent {
       nextCheckedQuestionIds.add(question.id);
       return nextCheckedQuestionIds;
     });
+
+    const session = this.session();
+
+    if (session) {
+      this.persistSessionImmediately(session.currentIndex, { ...session.answers });
+    }
   }
 
   private isQuestionChecked(questionId: number): boolean {

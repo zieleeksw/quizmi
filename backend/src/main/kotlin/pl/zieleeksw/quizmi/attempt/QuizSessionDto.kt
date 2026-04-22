@@ -10,7 +10,9 @@ data class QuizSessionDto(
     val quizTitle: String,
     val questionIds: List<Long>,
     val answerOrderByQuestion: Map<Long, List<Long>>,
+    val checkedQuestionIds: List<Long>,
     val currentIndex: Int,
+    val furthestIndex: Int,
     val answers: Map<Long, List<Long>>,
     val updatedAt: Instant
 )

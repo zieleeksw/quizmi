@@ -2,5 +2,6 @@ package pl.zieleeksw.quizmi.attempt
 
 data class QuizSessionUpdateRequest(
     val currentIndex: Int?,
-    val answers: List<QuizAttemptAnswerRequest>?
+    val answers: List<QuizAttemptAnswerRequest>?,
+    val checkedQuestionIds: List<Long>?
 )

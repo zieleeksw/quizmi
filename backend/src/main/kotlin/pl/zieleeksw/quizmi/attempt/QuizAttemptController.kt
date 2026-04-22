@@ -52,7 +52,8 @@ class QuizAttemptController(
             quizId = quizId,
             userId = currentUser.id,
             currentIndex = request.currentIndex ?: 0,
-            answers = request.answers ?: emptyList()
+            answers = request.answers ?: emptyList(),
+            checkedQuestionIds = request.checkedQuestionIds
         )
     }
 

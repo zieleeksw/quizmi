@@ -63,8 +63,8 @@
           [class.quiz-play-option--selected-correct]="isSelectedCorrect(question.id, answer.id)"
           [class.quiz-play-option--selected-wrong]="isSelectedWrong(question.id, answer.id)"
           [class.quiz-play-option--missed-correct]="isMissedCorrect(question.id, answer.id)"
-          [class.quiz-play-option--locked]="currentQuestionChecked()">
-          <input type="checkbox" [checked]="isSelected(question.id, answer.id)" [disabled]="currentQuestionChecked()"
+          [class.quiz-play-option--locked]="currentQuestionLocked()">
+          <input type="checkbox" [checked]="isSelected(question.id, answer.id)" [disabled]="currentQuestionLocked()"
             (change)="toggleAnswer(answer.id)" />
           <span class="quiz-play-option__letter">{{ answerLabel(index) }}</span>
           <div class="quiz-play-option__copy">

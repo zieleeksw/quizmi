@@ -403,6 +403,145 @@ class QuizIntegrationTest : IntegrationTest() {
     }
 
     @Test
+    fun `should reject editing answered previous session question`() {
+        val authentication = registerAndLogin("quiz.locked.previous@quizmi.app")
+        val courseId = createCourseAndReadId(authentication.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, authentication.accessToken, "Authentication")
+        val firstQuestionResponse = createQuestionAndReadResponse(
+            courseId,
+            authentication.accessToken,
+            categoryId,
+            "Which controls should lock after moving to the next quiz question?"
+        )
+        val secondQuestionResponse = createQuestionAndReadResponse(
+            courseId,
+            authentication.accessToken,
+            categoryId,
+            "Which follow up question keeps the quiz session moving forward?"
+        )
+        val firstQuestionId = firstQuestionResponse["id"].asLong()
+        val secondQuestionId = secondQuestionResponse["id"].asLong()
+        val persistedAnswerId = firstQuestionResponse["answers"][0]["id"].asLong()
+        val replacementAnswerId = firstQuestionResponse["answers"][2]["id"].asLong()
+        val quizId = createQuizAndReadResponse(
+            courseId = courseId,
+            accessToken = authentication.accessToken,
+            requestJson = """
+                {"title":"Locked previous answers","mode":"manual","randomCount":null,"questionOrder":"fixed","answerOrder":"fixed","questionIds":[$firstQuestionId,$secondQuestionId],"categoryIds":[]}
+            """.trimIndent()
+        ).readJsonNumber("id")
+
+        mockMvc.perform(
+            post("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content("""{}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.currentIndex").value(0))
+            .andExpect(jsonPath("$.furthestIndex").value(0))
+
+        mockMvc.perform(
+            put("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content(
+                    """
+                    {"currentIndex":1,"answers":[{"questionId":$firstQuestionId,"answerIds":[$persistedAnswerId]}]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.currentIndex").value(1))
+            .andExpect(jsonPath("$.furthestIndex").value(1))
+            .andExpect(jsonPath("$.answers['$firstQuestionId'][0]").value(persistedAnswerId))
+
+        mockMvc.perform(
+            put("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content(
+                    """
+                    {"currentIndex":0,"answers":[{"questionId":$firstQuestionId,"answerIds":[$persistedAnswerId]}]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.currentIndex").value(0))
+            .andExpect(jsonPath("$.furthestIndex").value(1))
+            .andExpect(jsonPath("$.answers['$firstQuestionId'][0]").value(persistedAnswerId))
+
+        mockMvc.perform(
+            put("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content(
+                    """
+                    {"currentIndex":0,"answers":[{"questionId":$firstQuestionId,"answerIds":[$replacementAnswerId]}]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `should reject editing checked current session question after resume`() {
+        val authentication = registerAndLogin("quiz.locked.checked@quizmi.app")
+        val courseId = createCourseAndReadId(authentication.accessToken)
+        val categoryId = createCategoryAndReadId(courseId, authentication.accessToken, "Authentication")
+        val questionResponse = createQuestionAndReadResponse(courseId, authentication.accessToken, categoryId)
+        val questionId = questionResponse["id"].asLong()
+        val persistedAnswerId = questionResponse["answers"][2]["id"].asLong()
+        val replacementAnswerId = questionResponse["answers"][0]["id"].asLong()
+        val quizId = createQuizAndReadId(courseId, authentication.accessToken, questionId)
+
+        mockMvc.perform(
+            post("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content("""{}""")
+        )
+            .andExpect(status().isOk)
+
+        mockMvc.perform(
+            put("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content(
+                    """
+                    {"currentIndex":0,"checkedQuestionIds":[$questionId],"answers":[{"questionId":$questionId,"answerIds":[$persistedAnswerId]}]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.currentIndex").value(0))
+            .andExpect(jsonPath("$.furthestIndex").value(0))
+            .andExpect(jsonPath("$.checkedQuestionIds[0]").value(questionId))
+            .andExpect(jsonPath("$.answers['$questionId'][0]").value(persistedAnswerId))
+
+        mockMvc.perform(
+            post("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content("""{}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.checkedQuestionIds[0]").value(questionId))
+
+        mockMvc.perform(
+            put("/courses/{courseId}/quizzes/{quizId}/session", courseId, quizId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${authentication.accessToken}")
+                .content(
+                    """
+                    {"currentIndex":0,"checkedQuestionIds":[$questionId],"answers":[{"questionId":$questionId,"answerIds":[$replacementAnswerId]}]}
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
     fun `should persist randomized answer order across session resume and review`() {
         val authentication = registerAndLogin("quiz.answer.order@quizmi.app")
         val courseId = createCourseAndReadId(authentication.accessToken)
