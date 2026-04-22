@@ -7,13 +7,12 @@ import org.springframework.transaction.annotation.Transactional
 import pl.zieleeksw.quizmi.attempt.QuizAttemptAnswerRequest
 import pl.zieleeksw.quizmi.attempt.QuizSessionDto
 import pl.zieleeksw.quizmi.course.domain.CourseFacade
-import pl.zieleeksw.quizmi.question.QuestionDto
 import pl.zieleeksw.quizmi.question.domain.QuestionFacade
 import pl.zieleeksw.quizmi.question.domain.QuestionSummary
-import pl.zieleeksw.quizmi.quiz.QuizDto
 import pl.zieleeksw.quizmi.quiz.QuizMode
 import pl.zieleeksw.quizmi.quiz.QuizOrderMode
 import pl.zieleeksw.quizmi.quiz.domain.QuizFacade
+import pl.zieleeksw.quizmi.quiz.domain.QuizSessionSpec
 import java.time.Instant
 import kotlin.math.max
 import kotlin.math.min
@@ -35,8 +34,7 @@ class QuizSessionFacade(
 
     @Transactional
     fun createOrResumeSession(courseId: Long, quizId: Long, userId: Long): QuizSessionDto {
-        assertCourseVisibility(courseId, userId)
-        val quiz = quizFacade.fetchQuizForCourse(courseId, quizId, userId)
+        val quiz = quizFacade.fetchQuizSessionSpec(courseId, quizId, userId)
 
         return quizSessionRepository.findByCourseIdAndQuizIdAndUserId(courseId, quizId, userId)
             .map { synchronizeSessionState(it, courseId, userId, quiz) }
@@ -58,7 +56,7 @@ class QuizSessionFacade(
             .orElseThrow { QuizSessionNotFoundException.forQuizId(quizId) }
         val questionIds = deserializeQuestionIds(entity.questionIdsJson)
         val normalizedAnswers = normalizeAnswers(questionIds, answers)
-        val synchronizedAnswers = synchronizeAnswers(questionIds, normalizedAnswers, loadQuestionsById(courseId, userId, questionIds))
+        val synchronizedAnswers = synchronizeAnswers(questionIds, normalizedAnswers, loadAnswerIdsByQuestion(courseId, userId, questionIds))
 
         if (questionIds.isEmpty()) {
             throw IllegalArgumentException("Quiz session does not contain any playable questions.")
@@ -77,14 +75,14 @@ class QuizSessionFacade(
             .ifPresent(quizSessionRepository::delete)
     }
 
-    private fun createSession(courseId: Long, quiz: QuizDto, userId: Long): QuizSessionDto {
+    private fun createSession(courseId: Long, quiz: QuizSessionSpec, userId: Long): QuizSessionDto {
         val resolvedQuestions = resolveQuestionsForQuiz(courseId, userId, quiz)
 
         if (resolvedQuestions.questionIds.isEmpty()) {
             throw IllegalArgumentException("Quiz does not contain any playable questions.")
         }
 
-        val answerOrderByQuestion = resolveAnswerOrderByQuestion(quiz, resolvedQuestions.questionsById, resolvedQuestions.questionIds)
+        val answerOrderByQuestion = resolveAnswerOrderByQuestion(quiz, resolvedQuestions.answerIdsByQuestion, resolvedQuestions.questionIds)
 
         val now = roundToDatabasePrecision(Instant.now())
         val savedSession = quizSessionRepository.save(
@@ -105,10 +103,10 @@ class QuizSessionFacade(
         return toDto(savedSession)
     }
 
-    private fun resolveQuestionsForQuiz(courseId: Long, userId: Long, quiz: QuizDto): ResolvedSessionQuestions {
+    private fun resolveQuestionsForQuiz(courseId: Long, userId: Long, quiz: QuizSessionSpec): ResolvedSessionQuestions {
         if (quiz.mode == QuizMode.MANUAL) {
-            val questionsById = loadQuestionsById(courseId, userId, quiz.questionIds)
-            val availableQuestionIds = quiz.questionIds.filter { questionsById.containsKey(it) }
+            val answerIdsByQuestion = loadAnswerIdsByQuestion(courseId, userId, quiz.questionIds)
+            val availableQuestionIds = quiz.questionIds.filter { answerIdsByQuestion.containsKey(it) }
             val resolvedQuestionIds = if (quiz.questionOrder == QuizOrderMode.RANDOM) {
                 availableQuestionIds.shuffled()
             } else {
@@ -117,7 +115,7 @@ class QuizSessionFacade(
 
             return ResolvedSessionQuestions(
                 questionIds = resolvedQuestionIds,
-                questionsById = questionsById.filterKeys { resolvedQuestionIds.contains(it) }
+                answerIdsByQuestion = answerIdsByQuestion.filterKeys { resolvedQuestionIds.contains(it) }
             )
         }
 
@@ -126,11 +124,11 @@ class QuizSessionFacade(
 
         return ResolvedSessionQuestions(
             questionIds = resolvedQuestionIds,
-            questionsById = loadQuestionsById(courseId, userId, resolvedQuestionIds)
+            answerIdsByQuestion = loadAnswerIdsByQuestion(courseId, userId, resolvedQuestionIds)
         )
     }
 
-    private fun resolveQuestionIdsForQuiz(quiz: QuizDto, questionSummaries: List<QuestionSummary>): List<Long> {
+    private fun resolveQuestionIdsForQuiz(quiz: QuizSessionSpec, questionSummaries: List<QuestionSummary>): List<Long> {
         return when (quiz.mode) {
             QuizMode.MANUAL -> {
                 val availableIds = questionSummaries.map { it.id }.toSet()
@@ -146,7 +144,7 @@ class QuizSessionFacade(
             }
 
             QuizMode.CATEGORY -> {
-                val categoryIds = quiz.categories.map { it.id }.toSet()
+                val categoryIds = quiz.categoryIds.toSet()
                 val matchingQuestionIds = questionSummaries
                     .filter { question -> question.categoryIds.any { categoryId -> categoryIds.contains(categoryId) } }
                     .map { it.id }
@@ -190,14 +188,14 @@ class QuizSessionFacade(
         return normalized
     }
 
-    private fun synchronizeSessionState(entity: QuizSessionEntity, courseId: Long, userId: Long, quiz: QuizDto): QuizSessionEntity {
+    private fun synchronizeSessionState(entity: QuizSessionEntity, courseId: Long, userId: Long, quiz: QuizSessionSpec): QuizSessionEntity {
         val questionIds = deserializeQuestionIds(entity.questionIdsJson)
-        val questionsById = loadQuestionsById(courseId, userId, questionIds)
-        val synchronizedAnswers = synchronizeAnswers(questionIds, deserializeAnswers(entity.answersJson), questionsById)
+        val answerIdsByQuestion = loadAnswerIdsByQuestion(courseId, userId, questionIds)
+        val synchronizedAnswers = synchronizeAnswers(questionIds, deserializeAnswers(entity.answersJson), answerIdsByQuestion)
         val synchronizedAnswerOrder = synchronizeAnswerOrder(
             questionIds = questionIds,
             answerOrderByQuestion = deserializeAnswerOrder(entity.answerOrderJson),
-            questionsById = questionsById,
+            answerIdsByQuestion = answerIdsByQuestion,
             answerOrderMode = quiz.answerOrder
         )
 
@@ -216,7 +214,7 @@ class QuizSessionFacade(
     private fun synchronizeAnswers(
         questionIds: List<Long>,
         answers: Map<Long, List<Long>>,
-        questionsById: Map<Long, QuestionDto>
+        answerIdsByQuestion: Map<Long, List<Long>>
     ): Map<Long, List<Long>> {
         if (answers.isEmpty()) {
             return emptyMap()
@@ -228,10 +226,10 @@ class QuizSessionFacade(
                 return@forEach
             }
 
-            val question = questionsById[questionId]
+            val availableAnswerIds = answerIdsByQuestion[questionId]
                 ?: throw IllegalArgumentException("Quiz session contains questions outside the selected quiz.")
-            val availableAnswerIds = question.answers.map { it.id }.toSet()
-            val validAnswerIds = answerIds.filter { availableAnswerIds.contains(it) }
+            val availableAnswerIdSet = availableAnswerIds.toSet()
+            val validAnswerIds = answerIds.filter { availableAnswerIdSet.contains(it) }
 
             if (validAnswerIds.isNotEmpty()) {
                 synchronized[questionId] = validAnswerIds
@@ -242,27 +240,26 @@ class QuizSessionFacade(
     }
 
     private fun resolveAnswerOrderByQuestion(
-        quiz: QuizDto,
-        questionsById: Map<Long, QuestionDto>,
+        quiz: QuizSessionSpec,
+        answerIdsByQuestion: Map<Long, List<Long>>,
         questionIds: List<Long>
     ): Map<Long, List<Long>> {
         return questionIds.associateWith { questionId ->
-            val question = questionsById[questionId]
+            val answerIds = answerIdsByQuestion[questionId]
                 ?: throw IllegalArgumentException("Quiz session contains questions outside the selected quiz.")
-            buildAnswerOrder(question, quiz.answerOrder)
+            buildAnswerOrder(answerIds, quiz.answerOrder)
         }
     }
 
     private fun synchronizeAnswerOrder(
         questionIds: List<Long>,
         answerOrderByQuestion: Map<Long, List<Long>>,
-        questionsById: Map<Long, QuestionDto>,
+        answerIdsByQuestion: Map<Long, List<Long>>,
         answerOrderMode: QuizOrderMode
     ): Map<Long, List<Long>> {
         return questionIds.associateWith { questionId ->
-            val question = questionsById[questionId]
+            val availableAnswerIds = answerIdsByQuestion[questionId]
                 ?: throw IllegalArgumentException("Quiz session contains questions outside the selected quiz.")
-            val availableAnswerIds = question.answers.sortedBy { it.displayOrder }.map { it.id }
 
             if (answerOrderMode != QuizOrderMode.RANDOM) {
                 return@associateWith availableAnswerIds
@@ -286,8 +283,7 @@ class QuizSessionFacade(
         }
     }
 
-    private fun buildAnswerOrder(question: QuestionDto, answerOrderMode: QuizOrderMode): List<Long> {
-        val answerIds = question.answers.sortedBy { it.displayOrder }.map { it.id }
+    private fun buildAnswerOrder(answerIds: List<Long>, answerOrderMode: QuizOrderMode): List<Long> {
         return if (answerOrderMode == QuizOrderMode.RANDOM) randomizeOrder(answerIds) else answerIds
     }
 
@@ -300,8 +296,8 @@ class QuizSessionFacade(
         return if (shuffled != itemIds) shuffled else itemIds.drop(1) + itemIds.first()
     }
 
-    private fun loadQuestionsById(courseId: Long, userId: Long, questionIds: List<Long>): Map<Long, QuestionDto> {
-        return questionFacade.fetchQuestionsByIds(courseId, userId, questionIds).associateBy { it.id }
+    private fun loadAnswerIdsByQuestion(courseId: Long, userId: Long, questionIds: List<Long>): Map<Long, List<Long>> {
+        return questionFacade.fetchCurrentAnswerIdsByQuestionIds(courseId, userId, questionIds)
     }
 
     private fun toDto(entity: QuizSessionEntity): QuizSessionDto {
@@ -361,6 +357,6 @@ class QuizSessionFacade(
 
     private data class ResolvedSessionQuestions(
         val questionIds: List<Long>,
-        val questionsById: Map<Long, QuestionDto>
+        val answerIdsByQuestion: Map<Long, List<Long>>
     )
 }

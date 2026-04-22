@@ -130,6 +130,46 @@ class QuestionFacade(
     }
 
     @Transactional(readOnly = true)
+    fun fetchCurrentAnswerIdsByQuestionIds(
+        courseId: Long,
+        actorUserId: Long,
+        questionIds: List<Long>
+    ): Map<Long, List<Long>> {
+        assertCourseVisibility(courseId)
+
+        if (questionIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        val questionsById = questionRepository.findAllByCourseIdAndIdIn(courseId, questionIds)
+            .associateBy { it.id!! }
+        val orderedQuestions = questionIds.mapNotNull { questionId -> questionsById[questionId] }
+
+        if (orderedQuestions.isEmpty()) {
+            return emptyMap()
+        }
+
+        val currentVersionsByQuestionId = questionVersionRepository.findCurrentVersionsByQuestionIds(
+            orderedQuestions.mapNotNull { it.id }
+        ).associateBy { it.questionId!! }
+        val currentVersionIds = currentVersionsByQuestionId.values.mapNotNull { it.id }
+        val answerIdsByVersionId = if (currentVersionIds.isEmpty()) {
+            emptyMap()
+        } else {
+            questionAnswerRepository.findAllByQuestionVersionIdInOrderByQuestionVersionIdAscDisplayOrderAsc(currentVersionIds)
+                .groupBy { it.questionVersionId!! }
+                .mapValues { (_, answers) -> answers.mapNotNull { it.id } }
+        }
+
+        return orderedQuestions.associate { question ->
+            val questionId = question.id ?: throw IllegalStateException("Question id is missing.")
+            val currentVersion = currentVersionsByQuestionId[questionId]
+                ?: throw IllegalStateException("Current question version was not found.")
+            questionId to answerIdsByVersionId[currentVersion.id!!].orEmpty()
+        }
+    }
+
+    @Transactional(readOnly = true)
     fun fetchQuestionPreview(
         courseId: Long,
         actorUserId: Long,

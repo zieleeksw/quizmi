@@ -88,6 +88,33 @@ class QuizFacade(
     }
 
     @Transactional(readOnly = true)
+    fun fetchQuizSessionSpec(
+        courseId: Long,
+        quizId: Long,
+        actorUserId: Long
+    ): QuizSessionSpec {
+        courseFacade.fetchCourseForMember(courseId, actorUserId)
+        val quiz = findActiveQuizInCourseOrThrow(quizId, courseId)
+        val currentVersion = quizVersionRepository.findByQuizIdAndVersionNumber(quiz.id!!, quiz.currentVersionNumber!!)
+            .orElseThrow { IllegalStateException("Current quiz version was not found.") }
+        val questionIds = quizVersionQuestionRepository.findAllByQuizVersionIdOrderByDisplayOrderAsc(currentVersion.id!!)
+            .map { it.questionId!! }
+        val categoryIds = quizVersionCategoryRepository.findAllByQuizVersionIdOrderByDisplayOrderAsc(currentVersion.id!!)
+            .map { it.categoryId!! }
+
+        return QuizSessionSpec(
+            id = quiz.id!!,
+            title = currentVersion.title,
+            mode = currentVersion.mode!!,
+            randomCount = currentVersion.randomCount,
+            questionOrder = currentVersion.questionOrder!!,
+            answerOrder = currentVersion.answerOrder!!,
+            questionIds = questionIds,
+            categoryIds = categoryIds
+        )
+    }
+
+    @Transactional(readOnly = true)
     fun assertActiveQuizVisible(
         courseId: Long,
         quizId: Long,
