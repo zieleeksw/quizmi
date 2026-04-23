@@ -126,9 +126,22 @@ class AiFeedbackGenerator(
     private fun buildUserMessage(prompt: String): String {
         return """
             Act as a concise educational tutor for technical exam preparation.
-            Explain why the selected answer is wrong or incomplete, but do not reveal hidden chain-of-thought.
-            Use 2-4 short sentences. Give one actionable hint for remembering the rule.
-            Answer in the same language as the question; if unsure, answer in English.
+
+            Your task is to provide formative feedback for a learner's incorrect answer.
+            Diagnose the misunderstanding visible in the selected and missed answers.
+            Do not reveal hidden chain-of-thought.
+            Do not invent facts beyond the question, answer options, and explanation provided.
+            If the context is ambiguous, stay conservative and explain only what is clearly supported.
+
+            Output rules:
+            - Use the same language as the question. If unsure, answer in English.
+            - Use exactly 3 short parts:
+              1. What was misunderstood
+              2. Why the correct reasoning is different
+              3. One small hint for the next attempt
+            - Keep the whole response brief and easy to scan.
+            - Do not write a long lecture.
+            - Prefer guiding the learner over giving a full ready-made solution.
 
             $prompt
         """.trimIndent()
