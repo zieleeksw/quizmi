@@ -92,10 +92,8 @@ class AiFeedbackGenerator(
             return fallbackFeedback(context)
         }
 
-        return AiFeedbackDto(
-            feedback = content.take(1200),
-            generatedByAi = true
-        )
+        return parseStructuredFeedback(content)
+            ?: fallbackFeedback(context)
     }
 
     private fun buildPrompt(context: AiFeedbackContext): String {
@@ -135,10 +133,14 @@ class AiFeedbackGenerator(
 
             Output rules:
             - Use the same language as the question. If unsure, answer in English.
-            - Use exactly 3 short parts:
-              1. What was misunderstood
-              2. Why the correct reasoning is different
-              3. One small hint for the next attempt
+            - Return ONLY valid JSON.
+            - Do not use markdown.
+            - Do not number sections.
+            - Use exactly this schema:
+              {"misunderstanding":"...","reasoning":"...","hint":"..."}
+            - `misunderstanding` should explain what the learner mixed up.
+            - `reasoning` should explain why the correct reasoning is different.
+            - `hint` should give one small next-step hint, not a full ready-made solution.
             - Keep the whole response brief and easy to scan.
             - Do not write a long lecture.
             - Prefer guiding the learner over giving a full ready-made solution.
@@ -150,26 +152,113 @@ class AiFeedbackGenerator(
     private fun fallbackFeedback(context: AiFeedbackContext): AiFeedbackDto {
         val selectedWrong = context.answers.filter { it.selected && !it.correct }
         val missedCorrect = context.answers.filter { !it.selected && it.correct }
-        val parts = mutableListOf<String>()
-
-        if (selectedWrong.isNotEmpty()) {
-            parts += "Review the option you selected: it conflicts with the rule tested by this question."
+        val misunderstanding = when {
+            selectedWrong.isNotEmpty() && missedCorrect.isNotEmpty() ->
+                "You focused on an option that sounded plausible, but you also missed a key correct idea."
+            selectedWrong.isNotEmpty() ->
+                "You selected an option that conflicts with the rule tested in this question."
+            missedCorrect.isNotEmpty() ->
+                "You missed an important correct element of the answer."
+            else ->
+                "Your answer needs another look at the core concept tested here."
         }
 
-        if (missedCorrect.isNotEmpty()) {
-            parts += "Compare your choice with the correct option and focus on the keyword that changes the meaning."
-        }
-
-        if (context.explanation.isNullOrBlank()) {
-            parts += "Try to explain the correct answer in your own words before moving on."
+        val reasoning = if (context.explanation.isNullOrBlank()) {
+            "The correct reasoning depends on the exact wording of the question and the role of each answer option."
         } else {
-            parts += plainText(context.explanation).take(500)
+            plainText(context.explanation).take(500)
         }
 
         return AiFeedbackDto(
-            feedback = parts.joinToString(" "),
+            misunderstanding = misunderstanding,
+            reasoning = reasoning,
+            hint = "Compare the correct and incorrect options and look for the one keyword that changes the meaning.",
             generatedByAi = false
         )
+    }
+
+    private fun parseStructuredFeedback(content: String): AiFeedbackDto? {
+        val parsedJson = parseJsonFeedback(content)
+        if (parsedJson != null) {
+            return parsedJson
+        }
+
+        return parseLabeledFeedback(content)
+    }
+
+    private fun parseJsonFeedback(content: String): AiFeedbackDto? {
+        val direct = runCatching { objectMapper.readTree(content) }.getOrNull()
+        val node = direct ?: extractJsonObject(content)?.let { runCatching { objectMapper.readTree(it) }.getOrNull() }
+        val misunderstanding = node?.path("misunderstanding")?.asText()?.trim().orEmpty()
+        val reasoning = node?.path("reasoning")?.asText()?.trim().orEmpty()
+        val hint = node?.path("hint")?.asText()?.trim().orEmpty()
+
+        if (misunderstanding.isBlank() || reasoning.isBlank() || hint.isBlank()) {
+            return null
+        }
+
+        return AiFeedbackDto(
+            misunderstanding = misunderstanding.take(500),
+            reasoning = reasoning.take(700),
+            hint = hint.take(300),
+            generatedByAi = true
+        )
+    }
+
+    private fun parseLabeledFeedback(content: String): AiFeedbackDto? {
+        val normalized = content.replace("\r", " ").replace("\n", " ")
+        val misunderstanding = extractSection(
+            normalized,
+            "What was misunderstood:",
+            "Why the reasoning is different:"
+        )
+        val reasoning = extractSection(
+            normalized,
+            "Why the reasoning is different:",
+            "Hint:"
+        )
+        val hint = extractSection(normalized, "Hint:", null)
+
+        if (misunderstanding.isBlank() || reasoning.isBlank() || hint.isBlank()) {
+            return null
+        }
+
+        return AiFeedbackDto(
+            misunderstanding = misunderstanding.take(500),
+            reasoning = reasoning.take(700),
+            hint = hint.take(300),
+            generatedByAi = true
+        )
+    }
+
+    private fun extractJsonObject(content: String): String? {
+        val start = content.indexOf('{')
+        val end = content.lastIndexOf('}')
+
+        if (start < 0 || end <= start) {
+            return null
+        }
+
+        return content.substring(start, end + 1)
+    }
+
+    private fun extractSection(content: String, startLabel: String, endLabel: String?): String {
+        val startIndex = content.indexOf(startLabel, ignoreCase = true)
+        if (startIndex < 0) {
+            return ""
+        }
+
+        val valueStart = startIndex + startLabel.length
+        val valueEnd = if (endLabel == null) {
+            content.length
+        } else {
+            content.indexOf(endLabel, startIndex = valueStart, ignoreCase = true).takeIf { it >= 0 } ?: content.length
+        }
+
+        return content.substring(valueStart, valueEnd)
+            .replace(Regex("""^\s*[\d.)\-:]*\s*"""), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
     }
 
     private fun plainText(value: String): String {

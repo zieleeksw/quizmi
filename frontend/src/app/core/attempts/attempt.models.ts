@@ -69,6 +69,8 @@ export interface AiFeedbackRequest {
 }
 
 export interface AiFeedbackDto {
-  feedback: string;
+  misunderstanding: string;
+  reasoning: string;
+  hint: string;
   generatedByAi: boolean;
 }

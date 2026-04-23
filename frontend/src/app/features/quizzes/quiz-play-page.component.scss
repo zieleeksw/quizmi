@@ -315,6 +315,24 @@
 .quiz-play-question__ai-feedback {
   border-color: rgba(34, 108, 99, 0.22);
   background: rgba(34, 108, 99, 0.08);
+  gap: 0.85rem;
+}
+
+.quiz-play-question__ai-feedback-section {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.quiz-play-question__ai-feedback-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-secondary-strong);
+}
+
+.quiz-play-question__ai-feedback-section > p:last-child {
+  margin-top: 0;
 }
 
 .quiz-play-question__ai-feedback--prompt {

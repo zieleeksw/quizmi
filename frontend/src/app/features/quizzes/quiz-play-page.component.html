@@ -113,7 +113,18 @@
       @if (aiFeedbackFor(question.id); as feedback) {
       <div class="quiz-play-question__ai-feedback">
         <p class="app-eyebrow">{{ feedback.generatedByAi ? 'AI feedback' : 'Guided feedback' }}</p>
-        <p>{{ feedback.feedback }}</p>
+        <div class="quiz-play-question__ai-feedback-section">
+          <p class="quiz-play-question__ai-feedback-label">What to revisit</p>
+          <p>{{ feedback.misunderstanding }}</p>
+        </div>
+        <div class="quiz-play-question__ai-feedback-section">
+          <p class="quiz-play-question__ai-feedback-label">Why the correct reasoning is different</p>
+          <p>{{ feedback.reasoning }}</p>
+        </div>
+        <div class="quiz-play-question__ai-feedback-section">
+          <p class="quiz-play-question__ai-feedback-label">Small hint for the next attempt</p>
+          <p>{{ feedback.hint }}</p>
+        </div>
       </div>
       }
 
