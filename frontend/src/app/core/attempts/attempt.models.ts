@@ -63,3 +63,12 @@ export interface SaveQuizSessionRequest {
   answers: QuizAttemptAnswerRequest[];
   checkedQuestionIds: number[];
 }
+
+export interface AiFeedbackRequest {
+  selectedAnswerIds: number[];
+}
+
+export interface AiFeedbackDto {
+  feedback: string;
+  generatedByAi: boolean;
+}

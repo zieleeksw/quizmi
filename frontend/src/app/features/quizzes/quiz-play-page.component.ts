@@ -4,7 +4,7 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AttemptService } from '../../core/attempts/attempt.service';
-import { QuizAttemptDto, QuizAttemptAnswerRequest, QuizSessionDto } from '../../core/attempts/attempt.models';
+import { AiFeedbackDto, QuizAttemptDto, QuizAttemptAnswerRequest, QuizSessionDto } from '../../core/attempts/attempt.models';
 import { CourseDto } from '../../core/courses/course.models';
 import { CourseService } from '../../core/courses/course.service';
 import { QuestionDto } from '../../core/questions/question.models';
@@ -51,6 +51,8 @@ export class QuizPlayPageComponent {
   readonly completedAttempt = signal<QuizAttemptDto | null>(null);
   readonly toasts = signal<ToastItem[]>([]);
   readonly checkedQuestionIds = signal<Set<number>>(new Set<number>());
+  readonly aiFeedbackByQuestionId = signal<Record<number, AiFeedbackDto>>({});
+  readonly loadingAiFeedbackQuestionIds = signal<Set<number>>(new Set<number>());
 
   readonly orderedQuestions = computed(() => {
     const questionMap = this.questionsById();
@@ -338,6 +340,29 @@ export class QuizPlayPageComponent {
     return null;
   }
 
+  aiFeedbackFor(questionId: number): AiFeedbackDto | null {
+    return this.aiFeedbackByQuestionId()[questionId] ?? null;
+  }
+
+  isAiFeedbackLoading(questionId: number): boolean {
+    return this.loadingAiFeedbackQuestionIds().has(questionId);
+  }
+
+  shouldShowPersonalizedFeedbackButton(questionId: number): boolean {
+    return this.isQuestionChecked(questionId)
+      && !this.isQuestionAnsweredCorrectly(questionId)
+      && !this.aiFeedbackFor(questionId)
+      && !this.isAiFeedbackLoading(questionId);
+  }
+
+  generatePersonalizedFeedback(question: QuestionDto): void {
+    if (!this.shouldShowPersonalizedFeedbackButton(question.id)) {
+      return;
+    }
+
+    this.requestAiFeedback(question);
+  }
+
   private loadPage(): void {
     if (!Number.isFinite(this.courseId) || !Number.isFinite(this.quizId)) {
       this.isLoading.set(false);
@@ -523,6 +548,44 @@ export class QuizPlayPageComponent {
 
     return correctAnswerIds.length === selectedAnswerIds.size
       && correctAnswerIds.every((answerId) => selectedAnswerIds.has(answerId));
+  }
+
+  private requestAiFeedback(question: QuestionDto): void {
+    if (this.aiFeedbackFor(question.id) || this.isAiFeedbackLoading(question.id)) {
+      return;
+    }
+
+    const selectedAnswerIds = this.answersMap()[question.id] ?? [];
+
+    if (!selectedAnswerIds.length) {
+      return;
+    }
+
+    this.loadingAiFeedbackQuestionIds.update((questionIds) => {
+      const nextQuestionIds = new Set(questionIds);
+      nextQuestionIds.add(question.id);
+      return nextQuestionIds;
+    });
+
+    this.attemptService.generateFeedback(this.courseId, this.quizId, question.id, selectedAnswerIds)
+      .pipe(
+        finalize(() => {
+          this.loadingAiFeedbackQuestionIds.update((questionIds) => {
+            const nextQuestionIds = new Set(questionIds);
+            nextQuestionIds.delete(question.id);
+            return nextQuestionIds;
+          });
+        }),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (feedback) => {
+          this.aiFeedbackByQuestionId.update((records) => ({ ...records, [question.id]: feedback }));
+        },
+        error: (error) => {
+          this.pushToast('Feedback unavailable', extractApiMessage(error) ?? 'Unable to generate feedback right now.', 'error');
+        }
+      });
   }
 
   private orderAnswersForQuestion(question: QuestionDto, answerOrder: number[] | undefined): QuestionDto['answers'] {

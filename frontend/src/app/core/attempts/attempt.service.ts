@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../config/app-runtime-config';
 import {
+  AiFeedbackDto,
   QuizAttemptDetailDto,
   QuizAttemptDto,
   QuizAttemptAnswerRequest,
@@ -42,5 +43,12 @@ export class AttemptService {
 
   createAttempt(courseId: number, quizId: number, answers: QuizAttemptAnswerRequest[]): Observable<QuizAttemptDto> {
     return this.http.post<QuizAttemptDto>(`${this.apiBaseUrl}/courses/${courseId}/quizzes/${quizId}/attempts`, { answers });
+  }
+
+  generateFeedback(courseId: number, quizId: number, questionId: number, selectedAnswerIds: number[]): Observable<AiFeedbackDto> {
+    return this.http.post<AiFeedbackDto>(
+      `${this.apiBaseUrl}/courses/${courseId}/quizzes/${quizId}/questions/${questionId}/feedback`,
+      { selectedAnswerIds }
+    );
   }
 }

@@ -17,6 +17,15 @@ app:
   logging:
     controller-execution-time:
       enabled: ${QUIZMI_CONTROLLER_EXECUTION_TIME_LOGGING_ENABLED:false}
+  ai:
+    feedback:
+      enabled: ${QUIZMI_AI_FEEDBACK_ENABLED:true}
+      base-url: ${QUIZMI_AI_FEEDBACK_BASE_URL:https://openrouter.ai/api/v1}
+      api-key: ${QUIZMI_AI_FEEDBACK_API_KEY:}
+      model: ${QUIZMI_AI_FEEDBACK_MODEL:google/gemma-3-27b-it:free"}
+      max-tokens: ${QUIZMI_AI_FEEDBACK_MAX_TOKENS:220}
+      app-name: ${QUIZMI_AI_FEEDBACK_APP_NAME:Quizmi}
+      site-url: ${QUIZMI_AI_FEEDBACK_SITE_URL:}
   security:
     jwt:
       secret-key: ${QUIZMI_JWT_SECRET_KEY:5267556B58703272357538782F413F4428472B4B6250655368566D5971337436}

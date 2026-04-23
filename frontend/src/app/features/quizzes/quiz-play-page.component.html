@@ -88,6 +88,35 @@
       <p class="quiz-play-question__hint quiz-play-question__hint--correct">This question has been checked. Continue when you're ready.</p>
       }
 
+      @if (shouldShowPersonalizedFeedbackButton(question.id)) {
+      <div class="quiz-play-question__ai-feedback quiz-play-question__ai-feedback--prompt">
+        <div>
+          <p class="app-eyebrow">External AI prompt</p>
+          <p>Send this answer to the configured model and get a personalized explanation.</p>
+        </div>
+        <app-action-button
+          [label]="isAiFeedbackLoading(question.id) ? 'Generating feedback...' : 'Generate personalized feedback'"
+          [routerLink]="null"
+          tone="secondary"
+          [disabled]="isAiFeedbackLoading(question.id)"
+          (clicked)="generatePersonalizedFeedback(question)" />
+      </div>
+      }
+
+      @if (isAiFeedbackLoading(question.id)) {
+      <div class="quiz-play-question__ai-feedback">
+        <p class="app-eyebrow">AI feedback</p>
+        <p>Generating a short explanation for your answer...</p>
+      </div>
+      }
+
+      @if (aiFeedbackFor(question.id); as feedback) {
+      <div class="quiz-play-question__ai-feedback">
+        <p class="app-eyebrow">{{ feedback.generatedByAi ? 'AI feedback' : 'Guided feedback' }}</p>
+        <p>{{ feedback.feedback }}</p>
+      </div>
+      }
+
       <div class="quiz-play-actions">
         <app-action-button label="Previous" [routerLink]="null" tone="secondary" [disabled]="currentIndex() === 0"
           (clicked)="goToPreviousQuestion()" />

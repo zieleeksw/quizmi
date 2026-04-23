@@ -271,7 +271,8 @@
 }
 
 .quiz-play-question__categories,
-.quiz-play-question__explanation {
+.quiz-play-question__explanation,
+.quiz-play-question__ai-feedback {
   display: grid;
   gap: 0.6rem;
   padding: 1rem 1.05rem;
@@ -300,13 +301,39 @@
 
 .quiz-play-question__categories > p,
 .quiz-play-question__explanation > p,
-.quiz-play-question__explanation > div {
+.quiz-play-question__explanation > div,
+.quiz-play-question__ai-feedback > p {
   margin: 0;
 }
 
 .quiz-play-question__explanation > p,
-.quiz-play-question__explanation > div {
+.quiz-play-question__explanation > div,
+.quiz-play-question__ai-feedback > p {
   line-height: 1.6;
+}
+
+.quiz-play-question__ai-feedback {
+  border-color: rgba(34, 108, 99, 0.22);
+  background: rgba(34, 108, 99, 0.08);
+}
+
+.quiz-play-question__ai-feedback--prompt {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-color: rgba(107, 46, 230, 0.24);
+  background:
+    linear-gradient(135deg, rgba(107, 46, 230, 0.1), rgba(34, 108, 99, 0.08)),
+    rgba(255, 255, 255, 0.7);
+}
+
+.quiz-play-question__ai-feedback--prompt > div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.quiz-play-question__ai-feedback--prompt > div > p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .quiz-play-actions,
@@ -334,6 +361,7 @@
 @media (max-width: 900px) {
   .quiz-play-hero__topline,
   .quiz-play-question__header,
+  .quiz-play-question__ai-feedback--prompt,
   .quiz-play-actions,
   .quiz-play-result__actions,
   .quiz-play-progress__meta {
