@@ -47,7 +47,7 @@
       <div class="quiz-play-question__header">
         <div>
           <p class="app-eyebrow">Question {{ currentIndex() + 1 }}</p>
-          <h2 [innerHTML]="question.prompt | richTextHtml"></h2>
+          <h2 class="quiz-play-question__prompt" [innerHTML]="question.prompt | richTextHtml"></h2>
         </div>
 
         @if (questionStatusLabel(question.id); as statusLabel) {

@@ -27,7 +27,7 @@
           <div class="quiz-review-card__head">
             <div>
               <p class="app-eyebrow">Question {{ index + 1 }}</p>
-              <h2 [innerHTML]="question.prompt | richTextHtml"></h2>
+              <h2 class="quiz-review-card__prompt" [innerHTML]="question.prompt | richTextHtml"></h2>
             </div>
             <span class="quiz-review-card__result" [class.quiz-review-card__result--correct]="question.answeredCorrectly">
               {{ question.answeredCorrectly ? 'Correct' : 'Incorrect' }}

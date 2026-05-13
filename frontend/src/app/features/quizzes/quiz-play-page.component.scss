@@ -114,12 +114,15 @@
   align-items: flex-start;
 }
 
-.quiz-play-question__header h2 {
+.quiz-play-question__prompt {
   margin: 0;
   color: var(--color-ink-950);
   font-family: var(--font-display);
   font-size: clamp(1.7rem, 3vw, 2.35rem);
+  font-style: italic;
   line-height: 1.06;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .quiz-play-question__result {
@@ -225,6 +228,8 @@
   color: var(--color-ink-950);
   font-weight: 600;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .quiz-play-option__badges {
@@ -310,6 +315,8 @@
 .quiz-play-question__explanation > div,
 .quiz-play-question__ai-feedback > p {
   line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .quiz-play-question__ai-feedback {

@@ -22,7 +22,7 @@ app:
       enabled: ${QUIZMI_AI_FEEDBACK_ENABLED:true}
       base-url: ${QUIZMI_AI_FEEDBACK_BASE_URL:https://openrouter.ai/api/v1}
       api-key: ${QUIZMI_AI_FEEDBACK_API_KEY:}
-      model: ${QUIZMI_AI_FEEDBACK_MODEL:google/gemma-3-27b-it:free"}
+      model: ${QUIZMI_AI_FEEDBACK_MODEL:google/gemma-3-27b-it:free}
       max-tokens: ${QUIZMI_AI_FEEDBACK_MAX_TOKENS:220}
       app-name: ${QUIZMI_AI_FEEDBACK_APP_NAME:Quizmi}
       site-url: ${QUIZMI_AI_FEEDBACK_SITE_URL:}

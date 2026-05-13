@@ -2,6 +2,7 @@ const INLINE_TAGS = new Set(['strong', 'b', 'em', 'i', 'u', 'span']);
 const BLOCK_TAGS = new Set(['div', 'p', 'section', 'article']);
 const LIST_TAGS = new Set(['ul', 'ol']);
 const COLOR_PATTERN = /^(#[0-9a-f]{6}|#[0-9a-f]{3}|rgb\(\s*(?:[01]?\d?\d|2[0-4]\d|25[0-5])\s*,\s*(?:[01]?\d?\d|2[0-4]\d|25[0-5])\s*,\s*(?:[01]?\d?\d|2[0-4]\d|25[0-5])\s*\))$/i;
+const SUPPORTED_RICH_TEXT_TAG_PATTERN = /<\/?(?:strong|b|em|i|u|span|br|font|div|p|section|article|ul|ol|li)(?:\s|>|\/)/i;
 
 export function sanitizeRichTextHtml(value: string | null | undefined): string {
   if (!value?.trim()) {
@@ -9,7 +10,11 @@ export function sanitizeRichTextHtml(value: string | null | undefined): string {
   }
 
   const source = document.createElement('div');
-  source.innerHTML = value;
+  if (SUPPORTED_RICH_TEXT_TAG_PATTERN.test(value)) {
+    source.innerHTML = value;
+  } else {
+    source.textContent = value;
+  }
 
   const target = document.createElement('div');
   sanitizeChildren(source, target);
@@ -38,7 +43,7 @@ function sanitizeChildren(source: Node, target: HTMLElement | DocumentFragment):
 
 function sanitizeNode(node: Node): Node[] {
   if (node.nodeType === Node.TEXT_NODE) {
-    return [document.createTextNode(node.textContent ?? '')];
+    return createTextNodes(node.textContent ?? '');
   }
 
   if (node.nodeType !== Node.ELEMENT_NODE) {
@@ -110,6 +115,23 @@ function sanitizeNode(node: Node): Node[] {
   const fragment = document.createDocumentFragment();
   sanitizeChildren(element, fragment);
   return Array.from(fragment.childNodes);
+}
+
+function createTextNodes(value: string): Node[] {
+  const lines = value.replace(/\r\n?/g, '\n').split('\n');
+  const nodes: Node[] = [];
+
+  lines.forEach((line, index) => {
+    if (index > 0) {
+      nodes.push(document.createElement('br'));
+    }
+
+    if (line.length) {
+      nodes.push(document.createTextNode(line));
+    }
+  });
+
+  return nodes;
 }
 
 function normalizeInlineTag(tagName: string): string {
