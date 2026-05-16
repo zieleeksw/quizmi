@@ -13,7 +13,7 @@ export function sanitizeRichTextHtml(value: string | null | undefined): string {
   if (SUPPORTED_RICH_TEXT_TAG_PATTERN.test(value)) {
     source.innerHTML = value;
   } else {
-    source.textContent = value;
+    source.textContent = decodeHtmlEntities(value);
   }
 
   const target = document.createElement('div');
@@ -195,6 +195,12 @@ function normalizeRichTextHtml(value: string): string {
     .replace(/^(?:<br\s*\/?>\s*)+/i, '')
     .replace(/(?:<br\s*\/?>\s*)+$/i, '')
     .trim();
+}
+
+function decodeHtmlEntities(value: string): string {
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = value;
+  return textarea.value;
 }
 
 function collectPlainText(node: Node): string {
