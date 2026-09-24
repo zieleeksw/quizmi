@@ -1,0 +1,42 @@
+<main class="workspace-shell admin-console-shell">
+  <app-toast-stack [toasts]="errorToasts()" (dismissed)="dismissToast($event)" />
+  <app-workspace-topbar />
+
+  <article class="app-panel admin-console-card">
+    <div class="admin-console-card__header">
+      <p class="app-eyebrow">Admin Console</p>
+      <h1 class="app-title">All quiz attempts across the platform.</h1>
+    </div>
+
+    @if (isLoading()) {
+      <p class="app-copy">Loading attempts...</p>
+    } @else if (!attempts().length) {
+      <p class="app-copy">No quiz attempts have been recorded yet.</p>
+    } @else {
+      <div class="admin-console-table-wrapper">
+        <table class="admin-console-table">
+          <thead>
+            <tr>
+              <th>Finished at</th>
+              <th>Player</th>
+              <th>Course</th>
+              <th>Quiz</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (attempt of attempts(); track trackByAttemptId($index, attempt)) {
+              <tr>
+                <td>{{ attempt.finishedAt | date: 'medium' }}</td>
+                <td>{{ attempt.playerEmail }}</td>
+                <td>{{ attempt.courseName }}</td>
+                <td>{{ attempt.quizTitle }}</td>
+                <td>{{ attempt.correctAnswers }} / {{ attempt.totalQuestions }} ({{ accuracy(attempt) }}%)</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </article>
+</main>

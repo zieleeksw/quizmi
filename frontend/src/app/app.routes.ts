@@ -1,8 +1,10 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth/auth.guard';
+import { adminGuard } from './core/auth/admin.guard';
 import { guestGuard } from './core/auth/guest.guard';
 import { pendingChangesGuard } from './core/navigation/pending-changes.guard';
+import { AdminConsolePageComponent } from './features/admin/admin-console-page.component';
 import { LoginPageComponent } from './features/auth/login-page.component';
 import { RegisterPageComponent } from './features/auth/register-page.component';
 import { SessionPageComponent } from './features/auth/session-page.component';
@@ -146,6 +148,11 @@ export const routes: Routes = [
     path: 'session',
     canActivate: [authGuard],
     component: SessionPageComponent
+  },
+  {
+    path: 'ac',
+    canActivate: [adminGuard],
+    component: AdminConsolePageComponent
   },
   {
     path: '**',
