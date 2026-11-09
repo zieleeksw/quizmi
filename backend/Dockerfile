@@ -10,14 +10,14 @@ COPY backend/settings.gradle.kts settings.gradle.kts
 COPY backend/src src
 
 RUN chmod +x ./gradlew
-RUN ./gradlew bootJar --no-daemon
+RUN ./gradlew bootJar --no-daemon -Dorg.gradle.jvmargs="-Xmx350m"
 
 FROM eclipse-temurin:24-jre
 
 WORKDIR /app
 
 ENV SPRING_PROFILES_ACTIVE=dev
-ENV JAVA_OPTS=""
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC"
 
 COPY --from=builder /workspace/build/libs/*.jar /app/app.jar
 
