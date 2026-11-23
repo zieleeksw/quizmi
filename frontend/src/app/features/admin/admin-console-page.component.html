@@ -8,10 +8,75 @@
       <h1 class="app-title">All quiz attempts across the platform.</h1>
     </div>
 
-    @if (isLoading()) {
+    <div class="admin-console-filters">
+      <div class="admin-console-filter admin-console-filter--player">
+        <label class="admin-console-filter__label" for="admin-player-filter">Player</label>
+        <input
+          id="admin-player-filter"
+          class="app-input"
+          type="text"
+          placeholder="Search by email..."
+          autocomplete="off"
+          [value]="playerSearchTerm()"
+          (input)="onPlayerSearchInput(($any($event.target)).value)"
+          (blur)="onPlayerSearchBlur()"
+        />
+
+        @if (playerSuggestions().length) {
+          <ul class="admin-console-suggestions">
+            @for (player of playerSuggestions(); track trackByPlayerOptionId($index, player)) {
+              <li>
+                <button type="button" class="admin-console-suggestions__item" (click)="selectPlayer(player)">
+                  {{ player.email }}
+                </button>
+              </li>
+            }
+          </ul>
+        } @else if (isSearchingPlayers()) {
+          <p class="admin-console-filter__hint">Searching...</p>
+        }
+      </div>
+
+      <div class="admin-console-filter">
+        <label class="admin-console-filter__label" for="admin-course-filter">Course</label>
+        <select
+          id="admin-course-filter"
+          class="app-input"
+          [value]="selectedCourseId() ?? ''"
+          (change)="onCourseFilterChange(($any($event.target)).value)"
+        >
+          <option value="">All courses</option>
+          @for (course of courseOptions(); track trackByCourseOptionId($index, course)) {
+            <option [value]="course.courseId">{{ course.courseName }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="admin-console-filter">
+        <label class="admin-console-filter__label" for="admin-quiz-filter">Quiz</label>
+        <select
+          id="admin-quiz-filter"
+          class="app-input"
+          [value]="selectedQuizId() ?? ''"
+          (change)="onQuizFilterChange(($any($event.target)).value)"
+        >
+          <option value="">All quizzes</option>
+          @for (quiz of quizOptions(); track trackByQuizOptionId($index, quiz)) {
+            <option [value]="quiz.quizId">{{ quiz.quizTitle }} ({{ quiz.courseName }})</option>
+          }
+        </select>
+      </div>
+
+      <div class="admin-console-filter admin-console-filter--actions">
+        <button class="admin-console-filter__search" type="button" (click)="search()">Search</button>
+        <button class="admin-console-filter__clear" type="button" (click)="clearFilters()">Clear</button>
+      </div>
+    </div>
+
+    @if (isLoading() && !attempts().length) {
       <p class="app-copy">Loading attempts...</p>
     } @else if (!attempts().length) {
-      <p class="app-copy">No quiz attempts have been recorded yet.</p>
+      <p class="app-copy">No quiz attempts match the current filters.</p>
     } @else {
       <div class="admin-console-table-wrapper">
         <table class="admin-console-table">
@@ -36,6 +101,32 @@
             }
           </tbody>
         </table>
+      </div>
+
+      <div class="admin-console-pagination">
+        <p class="app-copy admin-console-pagination__summary">
+          Page {{ currentPageNumber() + 1 }} of {{ totalPages() }} ({{ totalItems() }} attempts total)
+        </p>
+
+        <div class="admin-console-pagination__buttons">
+          <button
+            class="admin-console-pagination__button"
+            type="button"
+            [disabled]="!hasPrevious() || isLoading()"
+            (click)="previousPage()"
+          >
+            Previous
+          </button>
+
+          <button
+            class="admin-console-pagination__button"
+            type="button"
+            [disabled]="!hasNext() || isLoading()"
+            (click)="nextPage()"
+          >
+            Next
+          </button>
+        </div>
       </div>
     }
   </article>
